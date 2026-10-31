@@ -1,142 +1,180 @@
 # 🎵 Muzika Tracker
 
-A lightweight, real-time collaborative music album tracking app. Replaces the Excel spreadsheet with a mobile-friendly web app where everyone can add albums, see changes instantly, and customize their own view.
+Replaces the Excel music tracker with a real-time web app + keeps Excel synced.
 
 ---
 
-## Features
+## What's included
 
-- ✅ **Real-time sync** — Everyone sees new albums instantly
-- ✅ **No login** — Pick your name, start tracking
-- ✅ **Mobile-first** — Designed for phones; way easier than Excel on mobile
-- ✅ **Per-user customization** — Each person picks their own theme color, font, and view mode (card / compact)
-- ✅ **Search + filter** — Find any album fast
-- ✅ **Minimal + fast** — Single HTML file, no build step
+| File | Purpose |
+|------|---------|
+| `index.html` | **The app.** One file → host anywhere. Real-time Firebase sync. |
+| `sync_to_excel.py` | Pulls from Firebase → generates updated `.xlsx` locally. |
+| `muzika-tracking-muzika.xlsx` | Your original data. |
 
 ---
 
-## 🚀 Setup (5 minutes)
+## Quick start (what you need to do)
 
-You need a free **Firebase** project for the real-time database.
+You have to do **2 things** (I can't log into your accounts):
 
-### 1. Create a Firebase project
+1. **Firebase** — create free project → copy 6 values → paste into `index.html`
+2. **GitHub** — create empty repo → run 3 commands I give you
 
-1. Go to [https://console.firebase.google.com](https://console.firebase.google.com)
+That's it. Total time: ~5 minutes.
+
+---
+
+## 1. Firebase Setup (real-time database)
+
+### Step A: Create project
+
+1. Go to **https://console.firebase.google.com**
 2. Click **"Add project"**
-3. Name it (e.g. `muzika-tracker`) → Continue → Continue → **Create project**
+3. Name: `muzika-tracker` → Continue → Continue → **Create project**
 
-### 2. Enable Firestore
+### Step B: Enable Firestore
 
-1. In the left sidebar, click **Build** → **Firestore Database**
-2. Click **"Create database"**
-3. Choose **"Start in test mode"** (allows reads/writes for now)
-4. Click **Next** → pick a region close to you (e.g. `eur3` for Europe) → **Enable**
+1. Left sidebar → **Build** → **Firestore Database**
+2. **"Create database"**
+3. Choose **"Start in test mode"**
+4. Region: pick closest (e.g. `eur3` for Europe) → **Enable**
 
-### 3. Get your config
+### Step C: Get your config
 
-1. Click the **⚙️ gear icon** next to **Project Overview** → **Project settings**
-2. Scroll down to **"Your apps"** → click **</> (web icon)**
-3. App nickname: `muzika` → **Register app**
-4. Copy the `firebaseConfig` block (it has `apiKey`, `authDomain`, `projectId`, etc.)
-
-### 4. Paste into the app
-
-Open `index.html` and replace the placeholder config:
+1. Click **⚙️ gear** next to **Project Overview** → **Project settings**
+2. Scroll to **"Your apps"** → click **</>** (web icon)
+3. Nickname: `muzika` → **Register app**
+4. Copy this block:
 
 ```javascript
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIza...",
+  authDomain: "muzika-tracker-12345.firebaseapp.com",
+  projectId: "muzika-tracker-12345",
+  storageBucket: "muzika-tracker-12345.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123..."
 };
 ```
 
-### 5. Host it (choose one)
+### Step D: Paste into the app
 
-#### Option A: Just open the file
-Double-click `index.html` — it works locally. **Everyone needs to be on the same network** for this to sync... actually no, Firebase works from anywhere. But the file needs to be served over HTTP/HTTPS for best mobile behavior.
+Open `index.html` in VS Code (or any editor). Find this section near the top:
 
-#### Option B: GitHub Pages (free, recommended)
-1. Push this repo to GitHub
-2. Go to **Settings** → **Pages**
-3. Source: **Deploy from a branch** → `main` / `root`
-4. Your app is live at `https://yourname.github.io/muzika-tracker`
+```javascript
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+```
 
-#### Option C: Netlify Drop (drag & drop)
-1. Go to [https://app.netlify.com/drop](https://app.netlify.com/drop)
-2. Drag `index.html` onto the page
-3. Instant live URL — share it with everyone
+Replace those 6 placeholder values with your real ones. **Save.**
 
----
+### Step E: Lock down rules (optional but recommended later)
 
-## 📱 How to use
-
-1. **Open the link** on your phone
-2. **Pick your name** (Hela, Karlo, Lea, Lovro, Lucija) or view-only guest
-3. **Tap ＋ Add** to add an album
-4. **Tap ⚙️** to customize your theme, font, and view mode
-5. **Swipe between tabs** to see All / Hela / Karlo / etc.
-6. **Toggle 👁️ All / 🙈 Mine** to focus on your own list
-
-### Fields you can fill
-| Field | Example |
-|-------|---------|
-| Artist | Pink Floyd |
-| Album | Animals |
-| Year | 1977 |
-| Genre | Progressive rock |
-| Date Listened | 2026-01-20 |
-| Rating | 5, 4.5, 5+ |
-| Impression | "creme de la creme" |
-| Standout Tracks | Dogs, Pigs, Sheep |
-| Recommend | ✅ Da / ❌ Ne / 🤷 Meh |
-| Comments | Anything extra |
-
----
-
-## 🛡️ Security note
-
-The app starts with **Firestore in test mode** (open to all). Once you're happy with it, lock it down:
-
-1. Firebase Console → Firestore Database → **Rules**
-2. Replace with:
+In Firebase Console → Firestore Database → **Rules**, replace with:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /albums/{album} {
-      allow read: if true;
-      allow write: if request.auth == null;  // or remove this line entirely for open access
+      allow read, write: if true;
     }
   }
 }
 ```
 
-Or add Firebase Auth later if you want real user accounts.
+*("if true" means anyone can read/write. Good for friends/family. Later you can add auth.)*
 
 ---
 
-## 🎨 Customization ideas (future)
+## 2. Host on GitHub (free)
 
-- Import your existing Excel data (I can write a Python script)
-- Add cover art auto-fetch from Spotify/Discogs API
-- Monthly stats / charts
-- "Listenlist" separate wishlist tab
+### Step A: Create GitHub repo
+
+1. Go to **https://github.com/new**
+2. Repository name: `muzika-tracker`
+3. Keep it **Public**
+4. **DO NOT** check "Add README" — leave everything unchecked
+5. Click **Create repository**
+
+### Step B: Push this code
+
+Copy-paste these 3 commands into your terminal (in this folder):
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/muzika-tracker.git
+git branch -M main
+git push -u origin main
+```
+
+*(Replace `YOUR_USERNAME` with your actual GitHub username)*
+
+### Step C: Enable GitHub Pages
+
+1. On your new repo page, click **Settings**
+2. Left sidebar → **Pages**
+3. Source: **Deploy from a branch** → select `main` → folder `/(root)` → **Save**
+4. Wait 1 minute, then visit: `https://YOUR_USERNAME.github.io/muzika-tracker`
 
 ---
 
-## Files
+## 3. Migrate existing Excel data
 
-| File | Purpose |
-|------|---------|
-| `index.html` | The entire app (CSS + JS + HTML in one file) |
-| `README.md` | This file |
-| `muzika-tracking-muzika.xlsx` | Your original Excel data |
+Option A — **Import in the app** (easiest):
+1. Open the app in your browser
+2. Click 📤 (Import) in the top bar
+3. Select your `muzika-tracking-muzika.xlsx`
+4. It auto-detects sheets and uploads everything to Firebase
+
+Option B — **Python script** (for automation):
+```bash
+# Requirements: pip install openpyxl requests
+# Then run:
+python sync_to_excel.py --project YOUR_PROJECT_ID --api-key YOUR_API_KEY --output muzika-tracking-muzika.xlsx
+```
 
 ---
 
-Built to replace the Excel with something your friends will actually use on their phones 🎧
+## 4. Keep Excel synced
+
+The app has a **📥 Export** button that downloads a fresh `.xlsx` with all current data anytime.
+
+For automatic syncing, run the Python script when you want an update:
+
+```bash
+python sync_to_excel.py --project YOUR_PROJECT_ID --api-key YOUR_API_KEY --output muzika-tracking-muzika.xlsx
+```
+
+Or set up a Windows Task Scheduler / cron job to run it daily.
+
+---
+
+## App features
+
+- ✅ **Real-time** — everyone sees changes instantly across all devices
+- ✅ **No login** — pick your name, start tracking
+- ✅ **Mobile-first** — way easier than Excel on phone
+- ✅ **Per-user customization** — theme, font, view mode (card / compact)
+- ✅ **Search + filter** — find anything fast
+- ✅ **Export/Import** — Excel ↔ Firebase in both directions
+
+---
+
+## Files in repo
+
+```
+muzika-tracker/
+├── index.html              # Single-file web app (CSS+JS+HTML)
+├── sync_to_excel.py        # Python script: Firebase → Excel
+├── muzika-tracking-muzika.xlsx   # Original data
+└── README.md               # This file
+```
+
+Built to replace your Excel with something your friends will actually use on their phones 🎧

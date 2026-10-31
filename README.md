@@ -12,11 +12,21 @@ Replaces the Excel music tracker with a real-time web app that uses **your Googl
 
 ---
 
+## ⚠️ After updating `google-apps-script.js`
+
+1. Paste the new code into **Extensions → Apps Script**, save
+2. In the toolbar pick the function **`setup`** → **Run** → allow the permissions (Drive for uploaded covers, external requests for cover lookup)
+3. **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy** (URL stays the same)
+
+The app creates `app_users`, `app_meta`, `app_comments`, `app_reactions`, `app_listen`, `app_trash` tabs automatically. Don't rename them.
+
+---
+
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `index.html` | The entire web app (single file). Host on GitHub Pages or open locally. |
+| `index.html`, `styles.css`, `js/*.js`, `sw.js` | The web app (GitHub Pages). `sw.js` makes it open offline. |
 | `google-apps-script.js` | **Apps Script code** you paste into your Google Sheet. This turns the sheet into an API. |
 | `muzika-tracking-muzika.xlsx` | Your original data. |
 

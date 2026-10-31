@@ -1,20 +1,28 @@
 /**
  * Muzika Tracker – Google Apps Script backend
  *
- * The Google Sheet is the database. Each person has their own tab
- * (HELA, KARLO, LEA, LOVRO, LUCIJA) and every tab can have a slightly
- * different column layout – columns are found by their header names.
+ * The Google Sheet is the database:
+ *   • One tab per person (HELA, KARLO, …) – the albums, human-editable, any column layout.
+ *     Columns are found by header name; month divider rows (e.g. "SIJEČANJ ♬") define the month.
+ *   • app_* tabs hold app data (created automatically, also editable by hand):
+ *       app_users      who uses the app (name, tab, avatar, colour, synced settings)
+ *       app_meta       per-album extras: cover, Spotify / YouTube / Apple / Deezer links
+ *       app_comments   comments on albums
+ *       app_reactions  emoji reactions
+ *       app_listen     listen lists ("you should hear this")
+ *       app_trash      backup of every album deleted from the app
  *
- *   GET  ?action=getAlbums[&v=<version>]  -> { success, version, albums } or { success, unchanged }
- *   POST (body = JSON, sent as text/plain to avoid CORS preflight)
- *        { action: "add",    owner, artist, album, ... }
- *        { action: "update", id, expectArtist, expectAlbum, artist, album, ... }
- *        { action: "delete", id, expectArtist, expectAlbum }
+ *   GET  ?action=getAlbums[&v=<version>]  -> everything, or { unchanged:true } if version matches
+ *   POST JSON body sent as text/plain (avoids the CORS preflight Apps Script can't answer)
  *
- * After changing this file: Deploy -> Manage deployments -> Edit -> Version: New version -> Deploy
+ * FIRST TIME / AFTER UPDATING THIS FILE:
+ *   1. Select the function "setup" in the toolbar and click Run (grants Drive + fetch permissions).
+ *   2. Deploy -> Manage deployments -> ✏️ Edit -> Version: New version -> Deploy.
  */
 
-var SHEET_NAMES = ["HELA", "KARLO", "LEA", "LOVRO", "LUCIJA"];
+var DEFAULT_USERS = ["Hela", "Karlo", "Lea", "Lovro", "Lucija"];
+var USER_COLORS = ["#ff6b6b", "#4ecdc4", "#ffd166", "#a78bfa", "#f093fb", "#4dabf7", "#69db7c", "#ff922b", "#e599f7", "#63e6be"];
+var REACTIONS = ["🔥", "❤️", "😍", "🤘", "😮", "💤"];
 
 // header regex -> field name (first matching column wins)
 var FIELDS = [
@@ -30,41 +38,71 @@ var FIELDS = [
   ["recommend",      /^(prepor|recommend)/],
   ["comments",       /^(koment|comment)/]
 ];
+var META_FIELDS = ["cover", "spotify", "youtube", "apple", "deezer"];
 
 var DEFAULT_HEADERS = ["Izvođač", "Album", "Godina", "Žanr", "Trajanje", "Datum Preslušavanja",
   "Ocjena (1-5)", "Dojam Albuma", "Istaknute Pjesme", "Preporučam (Da/Ne)", "Komentarska sekcija"];
 
-var CACHE_KEY = "albums_v3";
-var CACHE_TTL = 30;          // seconds; onEdit also clears it, so Sheet edits show up fast
+var MONTHS = ["sijecanj", "veljaca", "ozujak", "travanj", "svibanj", "lipanj",
+              "srpanj", "kolovoz", "rujan", "listopad", "studeni", "prosinac"];
+var MONTHS_EN = ["january", "february", "march", "april", "may", "june",
+                 "july", "august", "september", "october", "november", "december"];
+var MONTH_LABELS = ["SIJEČANJ", "VELJAČA", "OŽUJAK", "TRAVANJ", "SVIBANJ", "LIPANJ",
+                    "SRPANJ", "KOLOVOZ", "RUJAN", "LISTOPAD", "STUDENI", "PROSINAC"];
+
+var TABS = {
+  users:     ["name", "sheet", "avatar", "color", "settings", "created"],
+  meta:      ["key", "owner", "artist", "album", "cover", "coverSource", "spotify", "youtube", "apple", "deezer", "clientId", "created", "lookedUp"],
+  comments:  ["id", "key", "owner", "author", "text", "ts"],
+  reactions: ["key", "owner", "user", "emoji", "ts"],
+  listen:    ["id", "forUser", "artist", "album", "addedBy", "note", "ts"],
+  trash:     ["deletedAt", "owner", "row", "data"]
+};
+
+var CACHE_KEY = "muzika_v4";
+var CACHE_TTL = 30;          // seconds; onEdit + every app write clear it immediately
 var CHUNK = 90000;           // CacheService limit is 100KB per value
 
-/* ───────────────────────── entry points ───────────────────────── */
+/* ═══════════════════════════ entry points ═══════════════════════════ */
 
 function doGet(e) {
   try {
     var p = (e && e.parameter) || {};
     var action = p.action || "getAlbums";
-    if (action === "getAlbums") return getAlbumsResponse(p.v);
+    if (action === "getAlbums" || action === "getAll") return getAllResponse(p.v);
     return json({ success: false, error: "Unknown action: " + action });
   } catch (err) {
-    return json({ success: false, error: String(err) });
+    return json({ success: false, error: String(err && err.message || err) });
   }
 }
 
 function doPost(e) {
   try {
-    var params = JSON.parse((e && e.postData && e.postData.contents) || "{}");
-    var action = params.action;
-    if (action === "getAlbums") return getAlbumsResponse(params.v);
+    var p = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    var action = p.action;
+    if (action === "getAlbums" || action === "getAll") return getAllResponse(p.v);
+    if (action === "lookup") return json({ success: true, result: lookupAlbum(p.artist, p.album, p.spotify) });
+
+    // slow network work happens before taking the lock
+    var pre = {};
+    if (action === "add" && !p.cover && p.lookup !== false) pre.lookup = safeLookup(p.artist, p.album, p.spotify);
+    if (action === "uploadImage") pre.url = saveImageToDrive(p.dataUrl, p.name);
+    if (action === "autoCovers") pre.covers = autoCoversPrepare(p);
 
     var lock = LockService.getScriptLock();
-    lock.waitLock(20000);
+    lock.waitLock(25000);
     try {
-      var result;
-      if (action === "add") result = addAlbum(params);
-      else if (action === "update") result = updateAlbum(params);
-      else if (action === "delete") result = deleteAlbum(params);
-      else return json({ success: false, error: "Unknown action: " + action });
+      var handlers = {
+        add: addAlbum, update: updateAlbum, "delete": deleteAlbum,
+        comment: addComment, uncomment: deleteComment, react: setReaction,
+        listenAdd: addListen, listenRemove: removeListen,
+        addUser: addUser, updateUser: updateUser,
+        uploadImage: function () { return { success: true, url: pre.url }; },
+        autoCovers: function () { return autoCoversWrite(pre.covers); }
+      };
+      var h = handlers[action];
+      if (!h) return json({ success: false, error: "Unknown action: " + action });
+      var result = h(p, pre);
       SpreadsheetApp.flush();
       clearCache();
       return json(result);
@@ -72,52 +110,127 @@ function doPost(e) {
       lock.releaseLock();
     }
   } catch (err) {
-    return json({ success: false, error: String(err) });
+    return json({ success: false, error: String(err && err.message || err) });
   }
 }
 
-/** Simple trigger: runs whenever someone edits the Sheet by hand -> app sees it on next poll. */
-function onEdit(e) {
-  clearCache();
+/** Simple trigger: someone edited the Sheet by hand -> app sees it on its next poll. */
+function onEdit(e) { clearCache(); }
+
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi().createMenu("🎵 Muzika")
+      .addItem("Fetch missing album covers", "menuFetchCovers")
+      .addItem("Set up / repair app tabs", "setup")
+      .addToUi();
+  } catch (e) {}
 }
 
-/* ───────────────────────── reading ───────────────────────── */
+/** Run once from the editor: creates app_* tabs and asks for Drive / fetch permissions. */
+function setup() {
+  getUsers();
+  Object.keys(TABS).forEach(getTab);
+  getCoverFolder();
+  UrlFetchApp.fetch("https://itunes.apple.com/search?term=test&entity=album&limit=1", { muteHttpExceptions: true });
+  clearCache();
+  return "Setup OK";
+}
 
-function getAlbumsResponse(clientVersion) {
+function menuFetchCovers() {
+  var total = 0;
+  for (var i = 0; i < 5; i++) {
+    var r = autoCoversWrite(autoCoversPrepare({ limit: 15 }));
+    total += r.done;
+    if (!r.remaining) break;
+    Utilities.sleep(1500);
+  }
+  clearCache();
+  try { SpreadsheetApp.getActive().toast("Looked up " + total + " albums", "Muzika"); } catch (e) {}
+}
+
+/* ═══════════════════════════ reading ═══════════════════════════ */
+
+function getAllResponse(clientVersion) {
   var payload = getCachedPayload();
   if (!payload) {
-    var albums = readAllAlbums();
-    var body = JSON.stringify(albums);
+    var body = JSON.stringify(buildPayload());
     payload = { version: hash(body), body: body };
     putCachedPayload(payload);
   }
   if (clientVersion && clientVersion === payload.version) {
     return json({ success: true, unchanged: true, version: payload.version });
   }
-  // splice pre-serialized albums in to avoid parsing/stringifying again
   return ContentService
-    .createTextOutput('{"success":true,"version":"' + payload.version + '","albums":' + payload.body + '}')
+    .createTextOutput('{"success":true,"version":"' + payload.version + '","data":' + payload.body + '}')
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function readAllAlbums() {
+function buildPayload() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var users = getUsers();
+  var metaMap = {};
+  readTab("meta").forEach(function (m) { metaMap[m.key] = m; });
+
+  var albums = readAllAlbums(users);
+  albums.forEach(function (a) {
+    var m = metaMap[a.key];
+    if (!m) return;
+    META_FIELDS.forEach(function (f) { if (m[f]) a[f] = m[f]; });
+    if (m.created) a.created = Number(m.created) || 0;
+    if (m.lookedUp) a.lookedUp = true;
+  });
+
+  return {
+    sheetUrl: ss.getUrl(),
+    serverTime: Date.now(),
+    reactionsAllowed: REACTIONS,
+    users: users.map(function (u) {
+      var s = null;
+      try { s = u.settings ? JSON.parse(u.settings) : null; } catch (e) {}
+      return { name: u.name, sheet: u.sheet, avatar: u.avatar || "", color: u.color || "", settings: s };
+    }),
+    albums: albums,
+    comments: readTab("comments").map(function (c) {
+      return { id: c.id, key: c.key, owner: c.owner, author: c.author, text: c.text, ts: Number(c.ts) || 0 };
+    }),
+    reactions: readTab("reactions").map(function (r) {
+      return { key: r.key, owner: r.owner, user: r.user, emoji: r.emoji, ts: Number(r.ts) || 0 };
+    }),
+    listen: readTab("listen").map(function (l) {
+      return { id: l.id, forUser: l.forUser, artist: l.artist, album: l.album, nk: normKey(l.artist, l.album),
+               addedBy: l.addedBy, note: l.note, ts: Number(l.ts) || 0 };
+    })
+  };
+}
+
+function readAllAlbums(users) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
   var all = [];
 
-  SHEET_NAMES.forEach(function (name) {
-    var sheet = ss.getSheetByName(name);
+  users.forEach(function (u) {
+    var sheet = ss.getSheetByName(u.sheet);
     if (!sheet || sheet.getLastRow() === 0) return;
     var data = sheet.getDataRange().getValues();
     var info = detectHeaders(data);
     if (!info) return;
 
+    var section = 0, prev = 0; // month from divider rows / previous album
     for (var r = info.headerRow + 1; r < data.length; r++) {
       var a = rowToAlbum(data[r], info.cols, tz);
-      if (!isAlbumRow(a)) continue;
-      a.owner = name;
-      a.row = r + 1;                  // 1-based sheet row
-      a.id = name + "_" + (r + 1);
+      if (!isAlbumRow(a)) {
+        var m = monthFromText(data[r].join(" "));
+        if (m) section = m;
+        continue;
+      }
+      var dm = /^\d{4}-(\d{2})-\d{2}$/.test(a.listenedDate) ? +a.listenedDate.substr(5, 2) : 0;
+      a.month = dm || section || prev;
+      prev = a.month;
+      a.owner = u.name;
+      a.row = r + 1;                       // 1-based sheet row
+      a.id = u.sheet + "_" + (r + 1);
+      a.nk = normKey(a.artist, a.album);
+      a.key = u.name + "|" + a.nk;
       all.push(a);
     }
   });
@@ -160,7 +273,7 @@ function cellToString(v, field, tz) {
     if (field === "duration") return Utilities.formatDate(v, tz, "H:mm");
     return Utilities.formatDate(v, tz, "yyyy-MM-dd");
   }
-  return String(v).trim();
+  return unescapeText(String(v).trim());
 }
 
 /** Skip empty rows and decorative month dividers like "SIJEČANJ ♬". */
@@ -170,19 +283,99 @@ function isAlbumRow(a) {
   return !!(a.year || a.rating || a.standoutTracks);
 }
 
-/* ───────────────────────── writing ───────────────────────── */
+function monthFromText(t) {
+  var s = norm(t);
+  if (!s) return 0;
+  for (var i = 0; i < 12; i++) {
+    if (s.indexOf(MONTHS[i]) >= 0 || new RegExp("\\b" + MONTHS_EN[i] + "\\b").test(s)) return i + 1;
+  }
+  return 0;
+}
 
-function resolveOwnerSheet(owner) {
-  var name = String(owner || "").toUpperCase().trim();
-  if (SHEET_NAMES.indexOf(name) < 0) throw new Error("Unknown owner: " + owner);
+/* ═══════════════════════════ users ═══════════════════════════ */
+
+var _users = null; // per-request memo
+
+function getUsers() {
+  if (_users) return _users;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(name);
+  var existed = !!ss.getSheetByName("app_users");
+  var sheet = getTab("users");
+  var users = readTab("users").filter(function (u) { return u.name; });
+  if (!existed || (!users.length && sheet.getLastRow() <= 1)) {
+    DEFAULT_USERS.forEach(function (n, i) {
+      var u = { name: n, sheet: n.toUpperCase(), avatar: "", color: USER_COLORS[i % USER_COLORS.length], settings: "", created: String(Date.now()) };
+      appendObj("users", u);
+    });
+    users = readTab("users").filter(function (u) { return u.name; });
+  }
+  _users = users;
+  return users;
+}
+
+function findUser(name) {
+  var n = String(name || "").trim().toUpperCase();
+  var users = getUsers();
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].name.toUpperCase() === n || users[i].sheet.toUpperCase() === n) return users[i];
+  }
+  return null;
+}
+
+function requireUser(name) {
+  var u = findUser(name);
+  if (!u) throw new Error("Unknown user: " + name);
+  return u;
+}
+
+function addUser(p) {
+  var name = String(p.name || "").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 20) throw new Error("Name must be 1–20 characters");
+  if (/[|_<>"]/.test(name) || /^app/i.test(name)) throw new Error("Please use a simpler name");
+  if (findUser(name)) throw new Error("Someone called " + name + " already exists");
+  checkImage(p.avatar, 60000);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetName = name.toUpperCase();
+  var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
-    sheet = ss.insertSheet(name);
+    sheet = ss.insertSheet(sheetName);
+    var tz = ss.getSpreadsheetTimeZone();
+    sheet.getRange(1, 1).setValue(Utilities.formatDate(new Date(), tz, "yyyy") + ".").setFontWeight("bold");
+    sheet.getRange(2, 1, 1, DEFAULT_HEADERS.length).setValues([DEFAULT_HEADERS]).setFontWeight("bold");
+    sheet.setFrozenRows(2);
+  } else if (!detectHeaders(sheet.getDataRange().getValues())) {
+    sheet.insertRowBefore(1);
     sheet.getRange(1, 1, 1, DEFAULT_HEADERS.length).setValues([DEFAULT_HEADERS]).setFontWeight("bold");
   }
-  return sheet;
+  var count = readTab("users").length;
+  var u = { name: name, sheet: sheetName, avatar: p.avatar || "", color: p.color || USER_COLORS[count % USER_COLORS.length], settings: "", created: String(Date.now()) };
+  appendObj("users", u);
+  return { success: true, user: { name: u.name, sheet: u.sheet, avatar: u.avatar, color: u.color, settings: null } };
 }
+
+function updateUser(p) {
+  var u = requireUser(p.name);
+  var changes = {};
+  if (p.avatar !== undefined) { checkImage(p.avatar, 60000); changes.avatar = p.avatar; }
+  if (p.color !== undefined) changes.color = String(p.color).slice(0, 20);
+  if (p.settings !== undefined) {
+    var s = typeof p.settings === "string" ? p.settings : JSON.stringify(p.settings);
+    if (s.length > 40000) throw new Error("Settings too large");
+    changes.settings = s;
+  }
+  setObj("users", u._row, changes);
+  _users = null;
+  return { success: true };
+}
+
+function checkImage(dataUrl, max) {
+  if (!dataUrl) return;
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(dataUrl)) throw new Error("Image must be a data URL");
+  if (dataUrl.length > max) throw new Error("Image too large");
+}
+
+/* ═══════════════════════════ albums: writing ═══════════════════════════ */
 
 function getSheetInfo(sheet) {
   var data = sheet.getDataRange().getValues();
@@ -192,31 +385,101 @@ function getSheetInfo(sheet) {
   return info;
 }
 
-function addAlbum(p) {
-  var sheet = resolveOwnerSheet(p.owner);
+function userSheet(u) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(u.sheet);
+  if (!sheet) throw new Error("Tab " + u.sheet + " is missing");
+  return sheet;
+}
+
+function addAlbum(p, pre) {
+  var u = requireUser(p.owner);
+  if (!String(p.artist || "").trim() || !String(p.album || "").trim()) throw new Error("Artist and album are required");
+
+  // offline queue may resend the same add – make it idempotent
+  if (p.clientId) {
+    var dup = readTab("meta").filter(function (m) { return m.clientId === p.clientId; })[0];
+    if (dup) return { success: true, duplicate: true, key: dup.key };
+  }
+
+  var sheet = userSheet(u);
   var info = getSheetInfo(sheet);
   var data = info.data, cols = info.cols;
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
 
-  // put the new album right after the last real album row (not after formatting/junk far below)
-  var last = info.headerRow;
-  for (var r = data.length - 1; r > info.headerRow; r--) {
-    if (String(data[r][cols.artist]).trim() || String(data[r][cols.album]).trim()) { last = r; break; }
+  // last row with anything in the artist/album columns, and the month section we're in
+  var last = info.headerRow, lastSection = 0, usesDividers = false;
+  for (var r = info.headerRow + 1; r < data.length; r++) {
+    var a = String(data[r][cols.artist]).trim(), b = String(data[r][cols.album]).trim();
+    var rowText = data[r].join(" ");
+    if (a || b || rowText.trim()) {
+      var asAlbum = rowToAlbum(data[r], cols, tz);
+      if (!isAlbumRow(asAlbum)) {
+        var m = monthFromText(rowText);
+        if (m) { lastSection = m; usesDividers = true; last = r; }
+      } else last = r;
+    }
   }
-  var targetRow = last + 2; // 1-based row after "last"
-  if (targetRow > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 1);
 
+  var lookup = pre && pre.lookup;
+  if (lookup) {
+    if (!p.year && lookup.year) p.year = lookup.year;
+    if (!p.genre && lookup.genre) p.genre = lookup.genre;
+  }
+
+  var newMonth = /^\d{4}-\d{2}-\d{2}$/.test(p.listenedDate || "") ? +p.listenedDate.substr(5, 2)
+                 : +Utilities.formatDate(new Date(), tz, "M");
+  var targetRow = last + 2; // 1-based row after "last"
+  var needDivider = (usesDividers || last === info.headerRow) && newMonth > lastSection;
+  var rowsNeeded = targetRow + (needDivider ? 1 : 0) - sheet.getMaxRows();
+  if (rowsNeeded > 0) sheet.insertRowsAfter(sheet.getMaxRows(), rowsNeeded);
+
+  if (needDivider) {
+    sheet.getRange(targetRow, cols.artist + 1).setValue(MONTH_LABELS[newMonth - 1]).setFontWeight("bold");
+    targetRow++;
+  }
   writeFields(sheet, targetRow, cols, p);
-  return { success: true, id: sheet.getName() + "_" + targetRow };
+
+  var key = u.name + "|" + normKey(p.artist, p.album);
+  var meta = { owner: u.name, artist: p.artist, album: p.album, clientId: p.clientId || "", created: String(Date.now()) };
+  META_FIELDS.forEach(function (f) { if (p[f]) meta[f] = p[f]; });
+  if (p.cover) meta.coverSource = p.coverSource || "user";
+  if (lookup) {
+    meta.lookedUp = String(Date.now());
+    if (!meta.cover && lookup.cover) { meta.cover = lookup.cover; meta.coverSource = lookup.source; }
+    if (!meta.apple && lookup.apple) meta.apple = lookup.apple;
+    if (!meta.deezer && lookup.deezer) meta.deezer = lookup.deezer;
+  }
+  upsertMeta(key, meta);
+  return { success: true, id: u.sheet + "_" + targetRow, key: key };
 }
 
 function updateAlbum(p) {
   var loc = locateRow(p);
   writeFields(loc.sheet, loc.row, loc.info.cols, p);
-  return { success: true, id: loc.sheet.getName() + "_" + loc.row };
+
+  var owner = loc.user.name;
+  var oldKey = owner + "|" + normKey(p.expectArtist !== undefined ? p.expectArtist : loc.found.artist,
+                                     p.expectAlbum !== undefined ? p.expectAlbum : loc.found.album);
+  var newKey = owner + "|" + normKey(p.artist !== undefined ? p.artist : loc.found.artist,
+                                     p.album !== undefined ? p.album : loc.found.album);
+  if (oldKey !== newKey) rekey(oldKey, newKey);
+
+  var meta = { owner: owner };
+  if (p.artist !== undefined) meta.artist = p.artist;
+  if (p.album !== undefined) meta.album = p.album;
+  META_FIELDS.forEach(function (f) { if (p[f] !== undefined) meta[f] = p[f]; });
+  if (p.cover !== undefined) meta.coverSource = p.cover ? (p.coverSource || "user") : "";
+  if (p.cover === "") meta.lookedUp = String(Date.now()); // user removed cover: don't auto-fetch again
+  upsertMeta(newKey, meta);
+  return { success: true, id: loc.user.sheet + "_" + loc.row, key: newKey };
 }
 
 function deleteAlbum(p) {
-  var loc = locateRow(p);
+  var loc;
+  try { loc = locateRow(p); }
+  catch (e) { if (p.clientId) return { success: true, alreadyGone: true }; throw e; }
+  var row = loc.info.data[loc.row - 1];
+  appendObj("trash", { deletedAt: String(Date.now()), owner: loc.user.name, row: String(loc.row), data: JSON.stringify(row) });
   loc.sheet.deleteRow(loc.row);
   return { success: true };
 }
@@ -226,23 +489,27 @@ function deleteAlbum(p) {
  * row no longer holds the expected album, search the tab for it instead of hitting the wrong row.
  */
 function locateRow(p) {
-  var parts = String(p.id || "").split("_");
-  var sheet = resolveOwnerSheet(parts[0]);
+  var id = String(p.id || "");
+  var cut = id.lastIndexOf("_");
+  var user = requireUser(cut > 0 ? id.slice(0, cut) : p.owner);
+  var sheet = userSheet(user);
   var info = getSheetInfo(sheet);
   var data = info.data, cols = info.cols;
-  var row = parseInt(parts[1], 10);
+  var row = parseInt(id.slice(cut + 1), 10);
   var expA = norm(p.expectArtist), expB = norm(p.expectAlbum);
 
   function matches(r0) {
     var d = data[r0];
     return d && norm(d[cols.artist]) === expA && norm(d[cols.album]) === expB;
   }
-
-  if (row > info.headerRow + 1 && row <= data.length && (p.expectArtist === undefined || matches(row - 1))) {
-    return { sheet: sheet, row: row, info: info };
+  function result(r1) {
+    return { sheet: sheet, row: r1, info: info, user: user,
+             found: { artist: String(data[r1 - 1][cols.artist]), album: String(data[r1 - 1][cols.album]) } };
   }
-  for (var r = info.headerRow + 1; r < data.length; r++) {
-    if (matches(r)) return { sheet: sheet, row: r + 1, info: info };
+
+  if (row > info.headerRow + 1 && row <= data.length && (p.expectArtist === undefined || matches(row - 1))) return result(row);
+  if (p.expectArtist !== undefined) {
+    for (var r = info.headerRow + 1; r < data.length; r++) if (matches(r)) return result(r + 1);
   }
   throw new Error("Album not found – the Sheet changed. Refresh and try again.");
 }
@@ -259,17 +526,304 @@ function writeFields(sheet, row, cols, p) {
       var d = v.split("-");
       cell.setNumberFormat("d.m.yyyy").setValue(new Date(+d[0], +d[1] - 1, +d[2]));
     } else if (field === "rating" || field === "year" || field === "duration") {
-      // store as plain text so Sheets never turns "4.5" into a date again
-      cell.setNumberFormat("@").setValue(v);
+      // plain text so Sheets never turns "4.5" into a date again
+      cell.setNumberFormat("@").setValue(safeText(v));
     } else {
-      cell.setValue(v);
+      cell.setValue(safeText(v));
     }
   }
 }
 
-/* ───────────────────────── utils ───────────────────────── */
+/* ═══════════════════════════ meta: covers & links ═══════════════════════════ */
 
-function norm(v) { return String(v == null ? "" : v).replace(/\s+/g, " ").trim().toLowerCase(); }
+function upsertMeta(key, obj) {
+  var rows = readTab("meta");
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].key === key) { setObj("meta", rows[i]._row, obj); return; }
+  }
+  obj.key = key;
+  appendObj("meta", obj);
+}
+
+function rekey(oldKey, newKey) {
+  ["meta", "comments", "reactions"].forEach(function (t) {
+    var sheet = getTab(t);
+    var col = TABS[t].indexOf("key") + 1;
+    readTab(t).forEach(function (r) {
+      if (r.key === oldKey) sheet.getRange(r._row, col).setValue(newKey);
+    });
+  });
+}
+
+/** Network part of the cover backfill – runs without the lock. */
+function autoCoversPrepare(p) {
+  var limit = Math.min(Number(p && p.limit) || 10, 20);
+  var metaMap = {};
+  readTab("meta").forEach(function (m) { metaMap[m.key] = m; });
+  var missing = readAllAlbums(getUsers()).filter(function (a) {
+    var m = metaMap[a.key];
+    return !m || (!m.cover && !m.lookedUp);
+  });
+  var batch = missing.slice(0, limit);
+  return { batch: batch, results: batch.length ? lookupMany(batch) : [], remaining: missing.length - batch.length };
+}
+
+function autoCoversWrite(prep) {
+  var rows = readTab("meta"), byKey = {}, fresh = [];
+  rows.forEach(function (m) { byKey[m.key] = m; });
+  prep.batch.forEach(function (a, i) {
+    var r = prep.results[i] || {};
+    var meta = { owner: a.owner, artist: a.artist, album: a.album, lookedUp: String(Date.now()) };
+    if (r.cover) { meta.cover = r.cover; meta.coverSource = r.source; }
+    if (r.apple) meta.apple = r.apple;
+    if (r.deezer) meta.deezer = r.deezer;
+    var existing = byKey[a.key];
+    if (existing) { if (!existing.cover) setObj("meta", existing._row, meta); }
+    else { meta.key = a.key; byKey[a.key] = meta; fresh.push(meta); }
+  });
+  if (fresh.length) appendObjs("meta", fresh);
+  return { success: true, done: prep.batch.length, remaining: prep.remaining };
+}
+
+function itunesUrl(artist, album) {
+  return "https://itunes.apple.com/search?entity=album&limit=8&term=" + encodeURIComponent(artist + " " + album);
+}
+function deezerUrl(artist, album) {
+  return "https://api.deezer.com/search/album?limit=8&q=" + encodeURIComponent(artist + " " + album);
+}
+
+function pickItunes(text, artist, album) {
+  try {
+    var res = JSON.parse(text).results || [];
+    var best = bestMatch(res, artist, album, function (x) { return [x.artistName, x.collectionName]; });
+    if (!best) return null;
+    return {
+      cover: String(best.artworkUrl100 || "").replace(/100x100bb/, "600x600bb"),
+      apple: String(best.collectionViewUrl || "").replace(/\?uo=\d+$/, ""),
+      year: best.releaseDate ? String(best.releaseDate).substr(0, 4) : "",
+      genre: best.primaryGenreName || "",
+      source: "itunes"
+    };
+  } catch (e) { return null; }
+}
+
+function pickDeezer(text, artist, album) {
+  try {
+    var res = JSON.parse(text).data || [];
+    var best = bestMatch(res, artist, album, function (x) { return [x.artist && x.artist.name, x.title]; });
+    if (!best) return null;
+    return { cover: best.cover_xl || best.cover_big || "", deezer: best.link || "", source: "deezer" };
+  } catch (e) { return null; }
+}
+
+/** Require the artist to match and the album title to roughly match. */
+function bestMatch(list, artist, album, getter) {
+  var na = norm(artist), nb = stripEdition(norm(album));
+  var best = null, bestScore = 0;
+  list.forEach(function (x) {
+    var g = getter(x), xa = norm(g[0]), xb = stripEdition(norm(g[1]));
+    if (!xa || !xb) return;
+    var aScore = xa === na ? 3 : (xa.indexOf(na) >= 0 || na.indexOf(xa) >= 0) ? 2 : 0;
+    var bScore = xb === nb ? 3 : (xb.indexOf(nb) >= 0 || nb.indexOf(xb) >= 0) ? 2 : 0;
+    if (!aScore || !bScore) return;
+    if (aScore + bScore > bestScore) { bestScore = aScore + bScore; best = x; }
+  });
+  return best;
+}
+
+function stripEdition(s) {
+  return s.replace(/\b(deluxe|remaster(ed)?|expanded|anniversary|edition|version|bonus|tracks?|\d{4})\b/g, " ")
+          .replace(/\s+/g, " ").trim();
+}
+
+function lookupMany(albums) {
+  var opts = { muteHttpExceptions: true };
+  var out = [];
+  var resp = UrlFetchApp.fetchAll(albums.map(function (a) { return { url: itunesUrl(a.artist, a.album), muteHttpExceptions: true }; }));
+  var retry = [];
+  albums.forEach(function (a, i) {
+    var r = resp[i].getResponseCode() === 200 ? pickItunes(resp[i].getContentText(), a.artist, a.album) : null;
+    out[i] = r;
+    if (!r) retry.push(i);
+  });
+  if (retry.length) {
+    var resp2 = UrlFetchApp.fetchAll(retry.map(function (i) { return { url: deezerUrl(albums[i].artist, albums[i].album), muteHttpExceptions: true }; }));
+    retry.forEach(function (i, j) {
+      if (resp2[j].getResponseCode() === 200) out[i] = pickDeezer(resp2[j].getContentText(), albums[i].artist, albums[i].album);
+    });
+  }
+  return out;
+}
+
+function lookupAlbum(artist, album, spotify) {
+  artist = String(artist || "").trim(); album = String(album || "").trim();
+  var result = null;
+  if (artist && album) result = lookupMany([{ artist: artist, album: album }])[0];
+  var sp = spotifyCover(spotify);
+  if (sp) { result = result || {}; result.cover = sp; result.source = "spotify"; }
+  return result;
+}
+
+function safeLookup(artist, album, spotify) {
+  try { return lookupAlbum(artist, album, spotify); } catch (e) { return null; }
+}
+
+/** Spotify's public oEmbed endpoint gives the cover for a pasted album link – no API key needed. */
+function spotifyCover(url) {
+  if (!url || !/^https:\/\/open\.spotify\.com\//.test(url)) return "";
+  try {
+    var r = UrlFetchApp.fetch("https://open.spotify.com/oembed?url=" + encodeURIComponent(url), { muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) return "";
+    return JSON.parse(r.getContentText()).thumbnail_url || "";
+  } catch (e) { return ""; }
+}
+
+/** Uploaded album covers go to a Drive folder, shared "anyone with the link can view". */
+function saveImageToDrive(dataUrl, name) {
+  checkImage(dataUrl, 1500000);
+  var m = /^data:(image\/[a-z]+);base64,(.*)$/.exec(dataUrl);
+  var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], String(name || "cover").replace(/[^\w.-]+/g, "_").slice(0, 60) + ".jpg");
+  var file = getCoverFolder().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w600";
+}
+
+function getCoverFolder() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("coverFolderId");
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var folder = DriveApp.createFolder("Muzika Tracker – covers");
+  props.setProperty("coverFolderId", folder.getId());
+  return folder;
+}
+
+/* ═══════════════════════════ social ═══════════════════════════ */
+
+function addComment(p) {
+  var author = requireUser(p.author).name;
+  var text = String(p.text || "").trim().slice(0, 1000);
+  if (!text) throw new Error("Empty comment");
+  if (!p.id || !p.key) throw new Error("Missing id/key");
+  if (readTab("comments").some(function (c) { return c.id === p.id; })) return { success: true, duplicate: true };
+  appendObj("comments", { id: p.id, key: p.key, owner: p.owner || "", author: author, text: text, ts: String(Number(p.ts) || Date.now()) });
+  return { success: true };
+}
+
+function deleteComment(p) {
+  var rows = readTab("comments");
+  for (var i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].id === p.id) {
+      if (rows[i].author.toUpperCase() !== String(p.author || "").toUpperCase()) throw new Error("You can only delete your own comments");
+      getTab("comments").deleteRow(rows[i]._row);
+      return { success: true };
+    }
+  }
+  return { success: true, alreadyGone: true };
+}
+
+function setReaction(p) {
+  var user = requireUser(p.user).name;
+  if (REACTIONS.indexOf(p.emoji) < 0) throw new Error("Unknown reaction");
+  var rows = readTab("reactions");
+  var existing = rows.filter(function (r) { return r.key === p.key && r.user === user && r.emoji === p.emoji; });
+  if (p.on && !existing.length) {
+    appendObj("reactions", { key: p.key, owner: p.owner || "", user: user, emoji: p.emoji, ts: String(Number(p.ts) || Date.now()) });
+  } else if (!p.on && existing.length) {
+    existing.sort(function (a, b) { return b._row - a._row; })
+      .forEach(function (r) { getTab("reactions").deleteRow(r._row); });
+  }
+  return { success: true };
+}
+
+function addListen(p) {
+  var forUser = requireUser(p.forUser).name;
+  var addedBy = requireUser(p.addedBy).name;
+  if (!String(p.artist || "").trim() && !String(p.album || "").trim()) throw new Error("Artist or album required");
+  if (readTab("listen").some(function (l) { return l.id === p.id; })) return { success: true, duplicate: true };
+  appendObj("listen", { id: p.id, forUser: forUser, artist: String(p.artist || "").trim(), album: String(p.album || "").trim(),
+                        addedBy: addedBy, note: String(p.note || "").slice(0, 300), ts: String(Number(p.ts) || Date.now()) });
+  return { success: true };
+}
+
+function removeListen(p) {
+  var rows = readTab("listen");
+  for (var i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].id === p.id) { getTab("listen").deleteRow(rows[i]._row); return { success: true }; }
+  }
+  return { success: true, alreadyGone: true };
+}
+
+/* ═══════════════════════════ app_* tab helpers ═══════════════════════════ */
+
+function getTab(t) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var name = "app_" + t;
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name, ss.getSheets().length);
+    sheet.getRange(1, 1, 1, TABS[t].length).setValues([TABS[t]]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, sheet.getMaxRows(), TABS[t].length).setNumberFormat("@"); // everything as plain text
+    sheet.setTabColor("#888888");
+  }
+  return sheet;
+}
+
+function readTab(t) {
+  var sheet = getTab(t);
+  if (sheet.getLastRow() < 2) return [];
+  var data = sheet.getRange(1, 1, sheet.getLastRow(), Math.max(TABS[t].length, 1)).getValues();
+  var head = data[0].map(function (h) { return String(h).trim(); });
+  var out = [];
+  for (var r = 1; r < data.length; r++) {
+    var o = { _row: r + 1 }, any = false;
+    TABS[t].forEach(function (col, i) {
+      var idx = head.indexOf(col);
+      var v = idx >= 0 ? data[r][idx] : "";
+      o[col] = v === null || v === undefined ? "" : unescapeText(String(v));
+      if (o[col]) any = true;
+    });
+    if (any) out.push(o);
+  }
+  return out;
+}
+
+function appendObj(t, obj) { appendObjs(t, [obj]); }
+
+function appendObjs(t, objs) {
+  var sheet = getTab(t);
+  var rows = objs.map(function (obj) {
+    return TABS[t].map(function (c) { return safeText(obj[c] === undefined || obj[c] === null ? "" : String(obj[c])); });
+  });
+  var r = sheet.getLastRow() + 1;
+  var need = r + rows.length - 1 - sheet.getMaxRows();
+  if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need + 50);
+  sheet.getRange(r, 1, rows.length, TABS[t].length).setNumberFormat("@").setValues(rows);
+  if (t === "users") _users = null;
+}
+
+function setObj(t, rowNum, obj) {
+  var sheet = getTab(t);
+  TABS[t].forEach(function (c, i) {
+    if (obj[c] !== undefined) sheet.getRange(rowNum, i + 1).setNumberFormat("@").setValue(safeText(String(obj[c] == null ? "" : obj[c])));
+  });
+}
+
+/* ═══════════════════════════ utils ═══════════════════════════ */
+
+/** Stop user text like "=IMPORTXML(...)" from being run as a formula. */
+function safeText(v) { return /^[=+\-@]/.test(v) && !/^-?\d/.test(v) ? "'" + v : v; }
+
+function unescapeText(v) { return /^'[=+\-@]/.test(v) ? v.slice(1) : v; }
+
+function norm(v) {
+  var s = String(v == null ? "" : v).toLowerCase();
+  try { s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); } catch (e) {}
+  return s.replace(/đ/g, "d").replace(/ß/g, "ss").replace(/&/g, " and ")
+          .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normKey(artist, album) { return norm(artist) + "~" + norm(album); }
 
 function hash(s) {
   var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, s, Utilities.Charset.UTF_8);

@@ -7,7 +7,7 @@ Replaces the Excel music tracker with a real-time web app that uses **your Googl
 - Your Google Sheet is the **single source of truth** (no separate database)
 - The web app shows the same data in a **mobile-friendly UI**
 - When anyone adds/edits in the **app**, it writes directly to the **Sheet**
-- When anyone edits the **Sheet** directly, the **app** sees it in ~5 seconds
+- When anyone edits the **Sheet** directly, the **app** picks it up on its next poll (every 10 s; an `onEdit` trigger clears the server cache right away)
 - Everyone can still download the `.xlsx` anytime — the Sheet IS the Excel
 
 ---
@@ -24,31 +24,14 @@ Replaces the Excel music tracker with a real-time web app that uses **your Googl
 
 ## Setup (10 minutes total)
 
-### Step 1: Create the Google Sheet
+### Step 1: The Google Sheet
 
-**Option A — Upload your existing Excel:**
-1. Go to [Google Sheets](https://sheets.google.com)
-2. Click **+ Blank**
-3. File → Import → Upload → select `muzika-tracking-muzika.xlsx`
-4. It will create tabs for each person. Good.
+Import `muzika-tracking-muzika.xlsx` into Google Sheets (File → Import), or use the existing shared Sheet.
 
-**Option B — Start fresh (simpler):**
-1. Create a new blank Google Sheet
-2. Rename the first tab to **exactly**: `Albums`
-3. Paste this header row in cell **A1**:
-
-```
-ID | Izvođač | Album | Godina | Žanr | Datum Preslušavanja | Ocjena (1-5) | Dojim Albuma | Istaknute Pjesme | Preporučam | Komentari | Owner | Timestamp
-```
-
-*(You can copy-paste it as one row with `|` as separators, then use Data → Split text to columns)*
-
-**If you used Option A (uploaded Excel):**
-- Create a new tab called `Albums`
-- Paste the header row above
-- Copy all data from the existing person-tabs into this one combined tab
-- Add the `Owner` column (write the person's name in every row)
-- Leave `ID` and `Timestamp` columns empty for now — the app fills them automatically
+- Each person keeps **their own tab**: `HELA`, `KARLO`, `LEA`, `LOVRO`, `LUCIJA` (names are listed in `SHEET_NAMES` in the script and `USERS` in `index.html`)
+- Each tab needs a header row (within the first 10 rows) with at least `Izvođač` and `Album`. Other columns are found **by header name**, so every tab can have its own layout and column order: `Godina`, `Žanr`, `Trajanje`, `Datum Preslušavanja`, `Ocjena`, `Dojam Albuma`, `Istaknute Pjesme`, `Preporučam`, `Komentarska sekcija`
+- Month divider rows (e.g. `SIJEČANJ ♬`) and extra columns are fine. The app ignores them and never overwrites them
+- New albums from the app go in right below the last album in that person's tab
 
 ---
 
@@ -141,12 +124,14 @@ https://YOUR_USERNAME.github.io/muzika-tracker
 - You forgot Step 3 — paste your Apps Script URL into `index.html`
 
 **Changes from the app don't show in the Sheet:**
-- Check that the `Albums` tab name is spelled exactly that way
-- Check that row 1 has the headers
-- Re-open the app (refresh)
+- Check that the tab names are exactly `HELA`, `KARLO`, `LEA`, `LOVRO`, `LUCIJA`
+- Check that the tab has a header row with `Izvođač` and `Album`
+- Did you deploy a **new version** after changing the script? (see below)
+- The app now shows the real error message in a toast. Read it
 
 **CORS error in browser console:**
 - In Apps Script, re-deploy with `Anyone` access (not `Only myself`)
+- The app sends POSTs as `text/plain` on purpose. Apps Script can't answer CORS preflight requests, so don't change it to `application/json`
 
 **Need to re-deploy after changing the script:**
 - Every time you edit the Apps Script code, click **Deploy** → **Manage deployments** → **Edit** (pencil) → **New version** → **Deploy**

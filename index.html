@@ -346,10 +346,8 @@
   // CONFIG: Replace with your Google Apps Script URL
   // Get it after deploying google-apps-script.js
   // ═══════════════════════════════════════════════
-  // Use /dev to avoid Google's redirect/cors issues
   const API_URL = "https://script.google.com/macros/s/AKfycbzJS-Tai3YMQH5xXeEyt_p2lFANFKrBKIVHgdCzjfOwSyVuceUzUB-VSlr6sgTGoI-4/exec";
-  // Fallback for CORS issues — use a no-redirect proxy
-  const CORS_API_URL = "https://script.google.com/macros/s/AKfycbzJS-Tai3YMQH5xXeEyt_p2lFANFKrBKIVHgdCzjfOwSyVuceUzUB-VSlr6sgTGoI-4/dev?action=getAlbums";
+  const POLL_MS = 10000; // how often to pull changes made directly in the Sheet
 
   // ═══════════════════════════════════════════════
   // STATE
@@ -371,7 +369,10 @@
     search: "",
     loading: true,
     apiReady: false,
-    pollInterval: null
+    pollInterval: null,
+    version: null,
+    lastError: "",
+    saving: false
   };
 
   const THEMES = {
@@ -410,26 +411,30 @@
   // ═══════════════════════════════════════════════
   // API
   // ═══════════════════════════════════════════════
-  async function apiGet() {
-    const url = API_URL + "?action=getAlbums&cache=" + Date.now();
-    const res = await fetch(url, { method: "GET", mode: "cors" });
-    if(!res.ok) throw new Error("GET "+res.status);
+  async function parseApi(res) {
+    if(!res.ok) throw new Error("HTTP "+res.status);
     const text = await res.text();
-    // Google may redirect to HTML; try parse JSON from it
-    return JSON.parse(text);
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e) { throw new Error("API did not return JSON – is the web app deployed with access 'Anyone'?"); }
+    if(data.success === false || data.error) throw new Error(data.error || "API error");
+    return data;
   }
+  async function apiGet() {
+    const url = API_URL + "?action=getAlbums" + (state.version ? "&v="+encodeURIComponent(state.version) : "") + "&t=" + Date.now();
+    return parseApi(await fetch(url, { redirect: "follow" }));
+  }
+  // text/plain keeps this a "simple" CORS request (no preflight, which Apps Script can't answer)
   async function apiPost(payload) {
-    const url = API_URL;
-    const res = await fetch(url, {
+    return parseApi(await fetch(API_URL, {
       method: "POST",
-      mode: "cors",
-      headers: { "Content-Type": "application/json" },
       redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
-    });
-    if(!res.ok) throw new Error("POST "+res.status);
-    return res.json();
+    }));
   }
+  // Sheet tabs are "HELA", app shows "Hela"
+  function normOwner(o) { const s=String(o||""); return USERS.find(u=>u.toUpperCase()===s.toUpperCase()) || s; }
 
   // ═══════════════════════════════════════════════
   // HELPERS
@@ -439,42 +444,49 @@
     if(d instanceof Date) return d.toLocaleDateString("hr-HR", {day:"numeric", month:"short"});
     const s = String(d).trim();
     if(!s) return "";
-    // Try parse common formats
-    const dt = new Date(s);
-    if(!isNaN(dt)) return dt.toLocaleDateString("hr-HR", {day:"numeric", month:"short"});
-    return s;
+    const iso = isoDate(s);
+    if(iso){ const [y,m,dd]=iso.split("-").map(Number); return new Date(y,m-1,dd).toLocaleDateString("hr-HR", {day:"numeric", month:"short", year:"numeric"}); }
+    return s; // free text like "1." – show as typed
   }
-  function esc(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function esc(s) { return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+  const isoDate = d => /^\d{4}-\d{2}-\d{2}/.test(String(d||"")) ? String(d).slice(0,10) : "";
   function rtClass(r) { const n=parseFloat(r); if(n>=5)return"rating-5"; if(n>=4)return"rating-4"; if(n>=3)return"rating-3"; if(n>=2)return"rating-2"; return"rating-1"; }
   function recClass(r) { const s=(r||"").toLowerCase().trim(); if(s.startsWith("da")||s==="yes"||s==="da!")return"rec-yes"; if(s.startsWith("ne")||s==="no")return"rec-no"; return"rec-meh"; }
   function recIcon(r) { const s=(r||"").toLowerCase().trim(); if(s.startsWith("da")||s==="yes"||s==="da!")return"✅"; if(s.startsWith("ne")||s==="no")return"❌"; return"🤷"; }
 
   // ═══════════════════════════════════════════════
-  // POLLING (every 5 seconds)
+  // POLLING – pulls edits made directly in the Sheet
   // ═══════════════════════════════════════════════
-  async function fetchAlbums() {
-    try {
-      const data = await apiGet();
-      if(data.albums) {
-        state.albums = data.albums;
+  let fetching = null;
+  async function fetchAlbums(force=false) {
+    if(fetching && !force) return fetching;
+    if(force) state.version = null;
+    fetching = (async()=>{
+      try {
+        const data = await apiGet();
+        state.apiReady = true; state.lastError = "";
+        if(data.albums) {
+          state.albums = data.albums.map(a=>({ ...a, owner: normOwner(a.owner) }));
+          state.version = data.version || null;
+        }
+        if(state.loading || data.albums) { state.loading = false; renderTabs(); renderList(); }
+      } catch(err) {
         state.loading = false;
-        state.apiReady = true;
-        renderTabs();
+        state.apiReady = false;
+        state.lastError = err.message;
         renderList();
-      }
-    } catch(err) {
-      state.loading = false;
-      state.apiReady = false;
-      renderList();
-      console.error("Fetch error:", err);
-    }
+        console.error("Fetch error:", err);
+      } finally { fetching = null; }
+    })();
+    return fetching;
   }
 
   function startPolling() {
     if(state.pollInterval) clearInterval(state.pollInterval);
     fetchAlbums();
-    state.pollInterval = setInterval(fetchAlbums, 5000);
+    state.pollInterval = setInterval(()=>{ if(!document.hidden && !state.saving) fetchAlbums(); }, POLL_MS);
   }
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden && state.pollInterval) fetchAlbums(); });
   function stopPolling() {
     if(state.pollInterval) { clearInterval(state.pollInterval); state.pollInterval = null; }
   }
@@ -548,7 +560,7 @@
         <div class="album-list"></div>`;
       c.querySelector("#search-input").addEventListener("input",e=>{ state.search=e.target.value.toLowerCase(); renderList(); });
       c.querySelector("#btn-toggle").addEventListener("click",()=>{ state.settings.showOthers=!state.settings.showOthers; saveSettings(); renderList(); });
-      c.querySelector("#btn-refresh").addEventListener("click",()=>{ toast("Refreshing..."); fetchAlbums(); });
+      c.querySelector("#btn-refresh").addEventListener("click",()=>{ toast("Refreshing..."); fetchAlbums(true); });
       list = c.querySelector(".album-list");
     }
     const s = state.search;
@@ -559,14 +571,15 @@
       const hay = `${a.artist||''} ${a.album||''} ${a.genre||''} ${a.impression||''} ${a.owner||''}`.toLowerCase();
       return hay.includes(s);
     });
-    filtered.sort((a,b)=> (b.timestamp||"").localeCompare(a.timestamp||""));
+    // newest listen first; rows without a real date keep sheet order (newest row first)
+    filtered.sort((a,b)=> isoDate(b.listenedDate).localeCompare(isoDate(a.listenedDate)) || (b.row||0)-(a.row||0));
 
     const btnToggle = document.getElementById("btn-toggle");
     if(btnToggle) btnToggle.textContent = state.settings.showOthers ? "👁️ All" : "🙈 Mine";
 
     if(state.loading){ list.innerHTML=`<div class="spinner"></div>`; return; }
     if(!state.apiReady && !state.albums.length){
-      list.innerHTML=`<div class="empty"><div class="empty-icon">🔗</div><div>Check API_URL in the code.<br>Paste your Google Apps Script URL.</div></div>`;
+      list.innerHTML=`<div class="empty"><div class="empty-icon">🔗</div><div>Can't reach the Google Sheet.<br><small>${esc(state.lastError)}</small><br>Check API_URL and the Apps Script deployment.</div></div>`;
       return;
     }
     if(filtered.length===0){ list.innerHTML=`<div class="empty"><div class="empty-icon">🎧</div><div>${s?"No matches":"No albums yet. Tap ＋ Add!"}</div></div>`; return; }
@@ -579,6 +592,7 @@
             <div class="album-name">${esc(a.album)}</div>
             <div class="album-meta">
               ${a.year?`<span class="album-year">${esc(a.year)}</span>`:""}
+              ${a.duration?`<span class="album-date">⏱ ${esc(a.duration)}</span>`:""}
               ${a.listenedDate?`<span class="album-date">📅 ${fmtDate(a.listenedDate)}</span>`:""}
               ${a.genre?`<span class="album-date">${esc(a.genre)}</span>`:""}
               ${a.rating?`<span class="album-rating ${rtClass(a.rating)}">★ ${esc(a.rating)}</span>`:""}
@@ -602,11 +616,14 @@
 
     list.querySelectorAll(".btn-edit").forEach(b=>b.addEventListener("click",()=>openSheet(b.dataset.id)));
     list.querySelectorAll(".btn-delete").forEach(b=>b.addEventListener("click",async()=>{
-      if(!confirm("Delete this album?")) return;
+      const a = state.albums.find(x=>x.id===b.dataset.id);
+      if(!a || !confirm(`Delete "${a.artist} – ${a.album}"? This removes the row from the Sheet.`)) return;
+      state.saving = true; b.disabled = true;
       try{
-        await apiPost({ action:"delete", id:b.dataset.id });
-        toast("Deleted ✂️"); fetchAlbums();
-      }catch(err){ toast("Error 😢"); console.error(err); }
+        await apiPost({ action:"delete", id:a.id, expectArtist:a.artist, expectAlbum:a.album });
+        toast("Deleted ✂️");
+      }catch(err){ toast("Error: "+err.message); console.error(err); }
+      finally{ state.saving = false; fetchAlbums(true); }
     }));
   }
 
@@ -618,7 +635,7 @@
     const a = id ? state.albums.find(x=>x.id===id) : null;
     const ov = document.createElement("div");
     ov.className="overlay active"; ov.id="sheet-overlay";
-    const dateVal = a?.listenedDate ? (String(a.listenedDate).includes("T") ? a.listenedDate.split("T")[0] : String(a.listenedDate)) : "";
+    const dateVal = id ? isoDate(a?.listenedDate) : new Date().toLocaleDateString("sv-SE");
     ov.innerHTML = `
       <div class="sheet">
         <div class="sheet-header">
@@ -632,6 +649,7 @@
             <div class="form-group"><label class="form-label">Year</label><input class="form-input" id="f-year" value="${esc(a?.year||"" )}" placeholder="1977"></div>
             <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="f-genre" value="${esc(a?.genre||"" )}" placeholder="Progressive rock"></div>
           </div>
+          <div class="form-group"><label class="form-label">Duration</label><input class="form-input" id="f-duration" value="${esc(a?.duration||"" )}" placeholder="42 min"></div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Date Listened</label><input type="date" class="form-input" id="f-date" value="${dateVal}"></div>
             <div class="form-group"><label class="form-label">Rating (1-5)</label><input class="form-input" id="f-rating" value="${esc(a?.rating||"" )}" placeholder="5, 4.5, 5+"></div>
@@ -646,11 +664,12 @@
                 <option value="Da" ${a?.recommend==="Da"?"selected":""}>✅ Da</option>
                 <option value="Ne" ${a?.recommend==="Ne"?"selected":""}>❌ Ne</option>
                 <option value="Meh" ${a?.recommend==="Meh"?"selected":""}>🤷 Meh</option>
+                ${a?.recommend && !["Da","Ne","Meh"].includes(a.recommend) ? `<option value="${esc(a.recommend)}" selected>${esc(a.recommend)}</option>` : ""}
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Owner</label>
-              <select class="form-select" id="f-owner">
+              <select class="form-select" id="f-owner" ${id?"disabled":""}>
                 ${USERS.map(u=>`<option value="${u}" ${(a?.owner||state.user)===u?"selected":""}>${u}</option>`).join("")}
               </select>
             </div>
@@ -667,12 +686,15 @@
     ov.querySelector("#sh-close").addEventListener("click",close);
     ov.querySelector("#sh-cancel").addEventListener("click",close);
     ov.addEventListener("click",e=>{if(e.target===ov)close();});
-    ov.querySelector("#sh-save").addEventListener("click",async()=>{
+    const saveBtn = ov.querySelector("#sh-save");
+    saveBtn.addEventListener("click",async()=>{
+      if(state.saving) return;
       const data={
         artist: document.getElementById("f-artist").value.trim(),
         album: document.getElementById("f-album").value.trim(),
         year: document.getElementById("f-year").value.trim(),
         genre: document.getElementById("f-genre").value.trim(),
+        duration: document.getElementById("f-duration").value.trim(),
         listenedDate: document.getElementById("f-date").value||"",
         rating: document.getElementById("f-rating").value.trim(),
         impression: document.getElementById("f-impression").value.trim(),
@@ -682,11 +704,15 @@
         comments: document.getElementById("f-comments").value.trim(),
       };
       if(!data.artist||!data.album){ toast("Artist and Album required!"); return; }
+      state.saving = true; saveBtn.disabled = true; saveBtn.textContent = "Saving…";
       try{
-        if(id){ await apiPost({ action:"update", id, ...data }); toast("Updated ✏️"); }
-        else { await apiPost({ action:"add", ...data }); toast("Added 🎉"); }
-        close(); fetchAlbums();
-      }catch(err){ console.error(err); toast("Error saving 😢 Check API_URL."); }
+        if(id){ await apiPost({ action:"update", id, expectArtist:a.artist, expectAlbum:a.album, ...data }); toast("Updated in Sheet ✏️"); }
+        else { await apiPost({ action:"add", ...data }); toast("Added to Sheet 🎉"); }
+        close();
+      }catch(err){
+        console.error(err); toast("Error: "+err.message);
+        saveBtn.disabled = false; saveBtn.textContent = id?"Save Changes":"Add Album";
+      }finally{ state.saving = false; fetchAlbums(true); }
     });
   }
 
@@ -754,11 +780,11 @@
   function exportToExcel() {
     if(!state.albums.length){ toast("Nothing to export"); return; }
     const rows = state.albums.map(a=>({
-      Izvođač: a.artist, Album: a.album, Godina: a.year, Žanr: a.genre,
+      Izvođač: a.artist, Album: a.album, Godina: a.year, Žanr: a.genre, Trajanje: a.duration,
       "Datum Preslušavanja": a.listenedDate || "",
       "Ocjena (1-5)": a.rating, "Dojim Albuma": a.impression,
       "Istaknute Pjesme": a.standoutTracks, Preporučam: a.recommend,
-      Komentari: a.comments, Owner: a.owner, Timestamp: a.timestamp
+      Komentari: a.comments, Owner: a.owner
     }));
     const wb = XLSX.utils.book_new();
     const allWs = XLSX.utils.json_to_sheet(rows);

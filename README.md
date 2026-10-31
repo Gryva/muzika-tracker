@@ -1,112 +1,98 @@
 # 🎵 Muzika Tracker
 
-Replaces the Excel music tracker with a real-time web app + keeps Excel synced.
+Replaces the Excel music tracker with a real-time web app that uses **your Google Sheet** as the backend.
+
+## How it works
+
+- Your Google Sheet is the **single source of truth** (no separate database)
+- The web app shows the same data in a **mobile-friendly UI**
+- When anyone adds/edits in the **app**, it writes directly to the **Sheet**
+- When anyone edits the **Sheet** directly, the **app** sees it in ~5 seconds
+- Everyone can still download the `.xlsx` anytime — the Sheet IS the Excel
 
 ---
 
-## What's included
+## Files
 
 | File | Purpose |
 |------|---------|
-| `index.html` | **The app.** One file → host anywhere. Real-time Firebase sync. |
-| `sync_to_excel.py` | Pulls from Firebase → generates updated `.xlsx` locally. |
+| `index.html` | The entire web app (single file). Host on GitHub Pages or open locally. |
+| `google-apps-script.js` | **Apps Script code** you paste into your Google Sheet. This turns the sheet into an API. |
 | `muzika-tracking-muzika.xlsx` | Your original data. |
 
 ---
 
-## Quick start (what you need to do)
+## Setup (10 minutes total)
 
-You have to do **2 things** (I can't log into your accounts):
+### Step 1: Create the Google Sheet
 
-1. **Firebase** — create free project → copy 6 values → paste into `index.html`
-2. **GitHub** — create empty repo → run 3 commands I give you
+**Option A — Upload your existing Excel:**
+1. Go to [Google Sheets](https://sheets.google.com)
+2. Click **+ Blank**
+3. File → Import → Upload → select `muzika-tracking-muzika.xlsx`
+4. It will create tabs for each person. Good.
 
-That's it. Total time: ~5 minutes.
+**Option B — Start fresh (simpler):**
+1. Create a new blank Google Sheet
+2. Rename the first tab to **exactly**: `Albums`
+3. Paste this header row in cell **A1**:
+
+```
+ID | Izvođač | Album | Godina | Žanr | Datum Preslušavanja | Ocjena (1-5) | Dojim Albuma | Istaknute Pjesme | Preporučam | Komentari | Owner | Timestamp
+```
+
+*(You can copy-paste it as one row with `|` as separators, then use Data → Split text to columns)*
+
+**If you used Option A (uploaded Excel):**
+- Create a new tab called `Albums`
+- Paste the header row above
+- Copy all data from the existing person-tabs into this one combined tab
+- Add the `Owner` column (write the person's name in every row)
+- Leave `ID` and `Timestamp` columns empty for now — the app fills them automatically
 
 ---
 
-## 1. Firebase Setup (real-time database)
+### Step 2: Add the Apps Script (the API)
 
-### Step A: Create project
-
-1. Go to **https://console.firebase.google.com**
-2. Click **"Add project"**
-3. Name: `muzika-tracker` → Continue → Continue → **Create project**
-
-### Step B: Enable Firestore
-
-1. Left sidebar → **Build** → **Firestore Database**
-2. **"Create database"**
-3. Choose **"Start in test mode"**
-4. Region: pick closest (e.g. `eur3` for Europe) → **Enable**
-
-### Step C: Get your config
-
-1. Click **⚙️ gear** next to **Project Overview** → **Project settings**
-2. Scroll to **"Your apps"** → click **</>** (web icon)
-3. Nickname: `muzika` → **Register app**
-4. Copy this block:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "muzika-tracker-12345.firebaseapp.com",
-  projectId: "muzika-tracker-12345",
-  storageBucket: "muzika-tracker-12345.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123..."
-};
-```
-
-### Step D: Paste into the app
-
-Open `index.html` in VS Code (or any editor). Find this section near the top:
-
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-```
-
-Replace those 6 placeholder values with your real ones. **Save.**
-
-### Step E: Lock down rules (optional but recommended later)
-
-In Firebase Console → Firestore Database → **Rules**, replace with:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /albums/{album} {
-      allow read, write: if true;
-    }
-  }
-}
-```
-
-*("if true" means anyone can read/write. Good for friends/family. Later you can add auth.)*
+1. In your Google Sheet, click **Extensions** → **Apps Script**
+2. Delete the default `myFunction()` code
+3. Open `google-apps-script.js` from this repo → **copy everything**
+4. Paste it into the Apps Script editor
+5. Click **Save** (floppy disk icon, or Ctrl+S)
+6. Click **Deploy** (top right) → **New deployment**
+7. Click the **gear icon** ⚙️ → choose **Web app**
+8. Fill in:
+   - **Description**: `muzika-api`
+   - **Execute as**: `Me`
+   - **Who has access**: `Anyone`
+9. Click **Deploy** → **Authorize access**
+10. Google will show a scary screen → click through (this is normal)
+11. Copy the **Web app URL** (looks like `https://script.google.com/macros/s/.../exec`)
 
 ---
 
-## 2. Host on GitHub (free)
+### Step 3: Plug the URL into the app
 
-### Step A: Create GitHub repo
+Open `index.html` in VS Code (or any text editor).
 
-1. Go to **https://github.com/new**
-2. Repository name: `muzika-tracker`
-3. Keep it **Public**
-4. **DO NOT** check "Add README" — leave everything unchecked
-5. Click **Create repository**
+Find this line near the top:
 
-### Step B: Push this code
+```javascript
+const API_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+```
 
-Copy-paste these 3 commands into your terminal (in this folder):
+Replace the entire URL with the one you copied from Apps Script. Save.
+
+---
+
+### Step 4: Host on GitHub Pages
+
+**Create GitHub repo:**
+1. https://github.com/new
+2. Name: `muzika-tracker` → **Public**
+3. Leave everything unchecked → **Create** 
+
+**Push the code:**
 
 ```bash
 git remote add origin https://github.com/YOUR_USERNAME/muzika-tracker.git
@@ -114,67 +100,57 @@ git branch -M main
 git push -u origin main
 ```
 
-*(Replace `YOUR_USERNAME` with your actual GitHub username)*
+*(Replace `YOUR_USERNAME` with your real GitHub username)*
 
-### Step C: Enable GitHub Pages
+**Enable Pages:**
+1. On your repo page → **Settings** → **Pages**
+2. Source: **Deploy from a branch** → `main` → `/(root)` → **Save**
+3. Wait 1 minute, then visit:
 
-1. On your new repo page, click **Settings**
-2. Left sidebar → **Pages**
-3. Source: **Deploy from a branch** → select `main` → folder `/(root)` → **Save**
-4. Wait 1 minute, then visit: `https://YOUR_USERNAME.github.io/muzika-tracker`
-
----
-
-## 3. Migrate existing Excel data
-
-Option A — **Import in the app** (easiest):
-1. Open the app in your browser
-2. Click 📤 (Import) in the top bar
-3. Select your `muzika-tracking-muzika.xlsx`
-4. It auto-detects sheets and uploads everything to Firebase
-
-Option B — **Python script** (for automation):
-```bash
-# Requirements: pip install openpyxl requests
-# Then run:
-python sync_to_excel.py --project YOUR_PROJECT_ID --api-key YOUR_API_KEY --output muzika-tracking-muzika.xlsx
+```
+https://YOUR_USERNAME.github.io/muzika-tracker
 ```
 
 ---
 
-## 4. Keep Excel synced
+## Using the app
 
-The app has a **📥 Export** button that downloads a fresh `.xlsx` with all current data anytime.
-
-For automatic syncing, run the Python script when you want an update:
-
-```bash
-python sync_to_excel.py --project YOUR_PROJECT_ID --api-key YOUR_API_KEY --output muzika-tracking-muzika.xlsx
-```
-
-Or set up a Windows Task Scheduler / cron job to run it daily.
+1. **Open the app** on your phone
+2. **Pick your name** (Hela, Karlo, Lea, Lovro, Lucija)
+3. **Tap ＋ Add** → fill the form → it appears in your Sheet instantly
+4. **Open the Sheet** on your computer → same data, updated live
+5. **Tap 📥** to download a fresh `.xlsx` with all albums anytime
 
 ---
 
-## App features
+## What everyone gets
 
-- ✅ **Real-time** — everyone sees changes instantly across all devices
-- ✅ **No login** — pick your name, start tracking
-- ✅ **Mobile-first** — way easier than Excel on phone
-- ✅ **Per-user customization** — theme, font, view mode (card / compact)
-- ✅ **Search + filter** — find anything fast
-- ✅ **Export/Import** — Excel ↔ Firebase in both directions
+- ✅ **One Google Sheet** = the single truth
+- ✅ **Add albums from phone** — easier than Excel
+- ✅ **Edit on desktop** — the Sheet works like always
+- ✅ **Per-user styling** — everyone picks their own theme/view in the app
+- ✅ **Search/filter** — find any album fast
+- ✅ **Export** — download `.xlsx` anytime
+- ✅ **No Firebase, no accounts, no extra cost**
 
 ---
 
-## Files in repo
+## Troubleshooting
 
-```
-muzika-tracker/
-├── index.html              # Single-file web app (CSS+JS+HTML)
-├── sync_to_excel.py        # Python script: Firebase → Excel
-├── muzika-tracking-muzika.xlsx   # Original data
-└── README.md               # This file
-```
+**"Check API_URL in the code" appears:**
+- You forgot Step 3 — paste your Apps Script URL into `index.html`
+
+**Changes from the app don't show in the Sheet:**
+- Check that the `Albums` tab name is spelled exactly that way
+- Check that row 1 has the headers
+- Re-open the app (refresh)
+
+**CORS error in browser console:**
+- In Apps Script, re-deploy with `Anyone` access (not `Only myself`)
+
+**Need to re-deploy after changing the script:**
+- Every time you edit the Apps Script code, click **Deploy** → **Manage deployments** → **Edit** (pencil) → **New version** → **Deploy**
+
+---
 
 Built to replace your Excel with something your friends will actually use on their phones 🎧

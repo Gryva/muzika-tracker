@@ -90,12 +90,12 @@
       font-size: 11px; color: var(--text-2); min-width: 18px; text-align: center;
     }
 
-    /* Main content */
+    /* Main */
     .container {
       max-width: 900px; margin: 0 auto; padding: 16px;
     }
 
-    /* Filters bar */
+    /* Filters */
     .filters {
       display: flex; gap: 8px; margin-bottom: 16px;
       flex-wrap: wrap; align-items: center;
@@ -181,13 +181,13 @@
     }
     .album-card:hover .album-actions { opacity: 1; }
 
-    /* Empty state */
+    /* Empty */
     .empty {
       text-align: center; padding: 60px 20px; color: var(--text-2);
     }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
-    /* Modal overlay */
+    /* Modal / Sheet */
     .overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.6);
       z-index: 200; display: none; align-items: flex-end; justify-content: center;
@@ -232,7 +232,7 @@
     }
     .form-actions .btn { padding: 12px 22px; }
 
-    /* User picker */
+    /* User chip */
     .user-chip {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
@@ -247,7 +247,6 @@
     }
     .color-option.active { border-color: #fff; transform: scale(1.15); }
     .color-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-
     .view-option {
       padding: 10px 14px; border-radius: var(--radius-sm);
       background: var(--bg); border: 2px solid transparent;
@@ -331,11 +330,6 @@
       cursor: pointer; font-family: inherit; font-size: 14px;
     }
 
-    /* Import area */
-    .import-hint {
-      font-size: 12px; color: var(--text-2); margin-top: 8px;
-    }
-
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
@@ -347,26 +341,12 @@
 </head>
 <body>
 
-<!-- Firebase SDKs -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-
+<script>
   // ═══════════════════════════════════════════════
-  // CONFIG: Replace with your Firebase project values
+  // CONFIG: Replace with your Google Apps Script URL
+  // Get it after deploying google-apps-script.js
   // ═══════════════════════════════════════════════
-  const firebaseConfig = {
-    apiKey: "AIzaSyCIO1lw86p8kW1Jh7RPhP72Toh_A80CDNA",
-    authDomain: "musictrackingapp-88278.firebaseapp.com",
-    projectId: "musictrackingapp-88278",
-    storageBucket: "musictrackingapp-88278.firebasestorage.app",
-    messagingSenderId: "300355691309",
-    appId: "1:300355691309:web:3ba3400b321fc40e4d69a4"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const albumsRef = collection(db, "albums");
+  const API_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
 
   // ═══════════════════════════════════════════════
   // STATE
@@ -387,7 +367,8 @@
     editingId: null,
     search: "",
     loading: true,
-    firebaseReady: false
+    apiReady: false,
+    pollInterval: null
   };
 
   const THEMES = {
@@ -406,8 +387,8 @@
   // ═══════════════════════════════════════════════
   // PERSISTENCE
   // ═══════════════════════════════════════════════
-  function loadSettings() { try { const r=localStorage.getItem("muzika_settings_v1"); if(r) state.settings={...DEFAULT_SETTINGS,...JSON.parse(r)}; }catch(e){} }
-  function saveSettings() { localStorage.setItem("muzika_settings_v1", JSON.stringify(state.settings)); }
+  function loadSettings() { try { const r=localStorage.getItem("muzika_settings_v2"); if(r) state.settings={...DEFAULT_SETTINGS,...JSON.parse(r)}; }catch(e){} }
+  function saveSettings() { localStorage.setItem("muzika_settings_v2", JSON.stringify(state.settings)); }
   function loadUser() { state.user = localStorage.getItem("muzika_user"); }
   function saveUser(u) { state.user=u; localStorage.setItem("muzika_user", u||""); }
 
@@ -424,18 +405,69 @@
   }
 
   // ═══════════════════════════════════════════════
+  // API
+  // ═══════════════════════════════════════════════
+  async function apiGet() {
+    const url = API_URL + "?action=getAlbums&cache=" + Date.now();
+    const res = await fetch(url, { method: "GET" });
+    return res.json();
+  }
+  async function apiPost(payload) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  // ═══════════════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════════════
   function fmtDate(d) {
     if(!d) return "";
-    if(typeof d==="string") d=new Date(d);
-    if(!(d instanceof Date)||isNaN(d)) return "";
-    return d.toLocaleDateString("hr-HR", {day:"numeric", month:"short"});
+    if(d instanceof Date) return d.toLocaleDateString("hr-HR", {day:"numeric", month:"short"});
+    const s = String(d).trim();
+    if(!s) return "";
+    // Try parse common formats
+    const dt = new Date(s);
+    if(!isNaN(dt)) return dt.toLocaleDateString("hr-HR", {day:"numeric", month:"short"});
+    return s;
   }
   function esc(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function rtClass(r) { const n=parseFloat(r); if(n>=5)return"rating-5"; if(n>=4)return"rating-4"; if(n>=3)return"rating-3"; if(n>=2)return"rating-2"; return"rating-1"; }
   function recClass(r) { const s=(r||"").toLowerCase().trim(); if(s.startsWith("da")||s==="yes"||s==="da!")return"rec-yes"; if(s.startsWith("ne")||s==="no")return"rec-no"; return"rec-meh"; }
   function recIcon(r) { const s=(r||"").toLowerCase().trim(); if(s.startsWith("da")||s==="yes"||s==="da!")return"✅"; if(s.startsWith("ne")||s==="no")return"❌"; return"🤷"; }
+
+  // ═══════════════════════════════════════════════
+  // POLLING (every 5 seconds)
+  // ═══════════════════════════════════════════════
+  async function fetchAlbums() {
+    try {
+      const data = await apiGet();
+      if(data.albums) {
+        state.albums = data.albums;
+        state.loading = false;
+        state.apiReady = true;
+        renderTabs();
+        renderList();
+      }
+    } catch(err) {
+      state.loading = false;
+      state.apiReady = false;
+      renderList();
+      console.error("Fetch error:", err);
+    }
+  }
+
+  function startPolling() {
+    if(state.pollInterval) clearInterval(state.pollInterval);
+    fetchAlbums();
+    state.pollInterval = setInterval(fetchAlbums, 5000);
+  }
+  function stopPolling() {
+    if(state.pollInterval) { clearInterval(state.pollInterval); state.pollInterval = null; }
+  }
 
   // ═══════════════════════════════════════════════
   // RENDER LOGIN
@@ -472,14 +504,12 @@
         <div class="header-spacer"></div>
         ${state.user?`<span class="user-chip active">${state.user}</span>`:""}
         <button class="btn btn-ghost btn-sm" id="btn-export" title="Export to Excel">📥</button>
-        <button class="btn btn-ghost btn-sm" id="btn-import" title="Import from Excel">📤</button>
         <button class="btn btn-ghost btn-sm" id="btn-settings">⚙️</button>
         <button class="btn btn-primary btn-sm" id="btn-add">＋ Add</button>
       </div>`;
     h.querySelector("#btn-add").addEventListener("click",()=>openSheet());
     h.querySelector("#btn-settings").addEventListener("click",()=>openSettings());
     h.querySelector("#btn-export").addEventListener("click",()=>exportToExcel());
-    h.querySelector("#btn-import").addEventListener("click",()=>importFromExcel());
   }
 
   function renderTabs() {
@@ -502,11 +532,13 @@
           <input type="text" class="search-input" placeholder="🔍 Search artist, album, genre..." id="search-input">
           <div class="filter-group">
             <button class="btn btn-ghost btn-sm" id="btn-toggle">${state.settings.showOthers?"👁️ All":"🙈 Mine"}</button>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh">🔄</button>
           </div>
         </div>
         <div class="album-list"></div>`;
       c.querySelector("#search-input").addEventListener("input",e=>{ state.search=e.target.value.toLowerCase(); renderList(); });
       c.querySelector("#btn-toggle").addEventListener("click",()=>{ state.settings.showOthers=!state.settings.showOthers; saveSettings(); renderList(); });
+      c.querySelector("#btn-refresh").addEventListener("click",()=>{ toast("Refreshing..."); fetchAlbums(); });
       list = c.querySelector(".album-list");
     }
     const s = state.search;
@@ -516,13 +548,16 @@
       if(!s) return true;
       return `${a.artist} ${a.album} ${a.genre} ${a.impression} ${a.owner}`.toLowerCase().includes(s);
     });
-    filtered.sort((a,b)=> (b.dateAdded?.seconds||0) - (a.dateAdded?.seconds||0));
+    filtered.sort((a,b)=> (b.timestamp||"").localeCompare(a.timestamp||""));
 
     const btnToggle = document.getElementById("btn-toggle");
     if(btnToggle) btnToggle.textContent = state.settings.showOthers ? "👁️ All" : "🙈 Mine";
 
     if(state.loading){ list.innerHTML=`<div class="spinner"></div>`; return; }
-    if(!state.firebaseReady){ list.innerHTML=`<div class="empty"><div class="empty-icon">🔥</div><div>Check Firebase config in the code.<br>See README.md for setup.</div></div>`; return; }
+    if(!state.apiReady && !state.albums.length){
+      list.innerHTML=`<div class="empty"><div class="empty-icon">🔗</div><div>Check API_URL in the code.<br>Paste your Google Apps Script URL.</div></div>`;
+      return;
+    }
     if(filtered.length===0){ list.innerHTML=`<div class="empty"><div class="empty-icon">🎧</div><div>${s?"No matches":"No albums yet. Tap ＋ Add!"}</div></div>`; return; }
 
     list.innerHTML = filtered.map(a=>`
@@ -550,14 +585,17 @@
           <div class="album-actions">
             <button class="btn btn-ghost btn-sm btn-edit" data-id="${a.id}">✏️ Edit</button>
             <button class="btn btn-ghost btn-sm btn-delete" data-id="${a.id}" style="color:var(--danger)">🗑️</button>
-          </div>`:""}
+          </div>
+        `:``}
       </div>`).join("");
 
     list.querySelectorAll(".btn-edit").forEach(b=>b.addEventListener("click",()=>openSheet(b.dataset.id)));
     list.querySelectorAll(".btn-delete").forEach(b=>b.addEventListener("click",async()=>{
       if(!confirm("Delete this album?")) return;
-      try{ await deleteDoc(doc(db,"albums",b.dataset.id)); toast("Deleted ✂️"); }
-      catch(e){ toast("Error 😢"); }
+      try{
+        await apiPost({ action:"delete", id:b.dataset.id });
+        toast("Deleted ✂️"); fetchAlbums();
+      }catch(err){ toast("Error 😢"); console.error(err); }
     }));
   }
 
@@ -569,7 +607,7 @@
     const a = id ? state.albums.find(x=>x.id===id) : null;
     const ov = document.createElement("div");
     ov.className="overlay active"; ov.id="sheet-overlay";
-    const dateVal = a?.listenedDate ? (typeof a.listenedDate==="string"?a.listenedDate:new Date(a.listenedDate).toISOString().split("T")[0]) : "";
+    const dateVal = a?.listenedDate ? (String(a.listenedDate).includes("T") ? a.listenedDate.split("T")[0] : String(a.listenedDate)) : "";
     ov.innerHTML = `
       <div class="sheet">
         <div class="sheet-header">
@@ -624,7 +662,7 @@
         album: document.getElementById("f-album").value.trim(),
         year: document.getElementById("f-year").value.trim(),
         genre: document.getElementById("f-genre").value.trim(),
-        listenedDate: document.getElementById("f-date").value||null,
+        listenedDate: document.getElementById("f-date").value||"",
         rating: document.getElementById("f-rating").value.trim(),
         impression: document.getElementById("f-impression").value.trim(),
         standoutTracks: document.getElementById("f-tracks").value.trim(),
@@ -634,10 +672,10 @@
       };
       if(!data.artist||!data.album){ toast("Artist and Album required!"); return; }
       try{
-        if(id){ await updateDoc(doc(db,"albums",id), {...data, updatedAt:serverTimestamp()}); toast("Updated ✏️"); }
-        else { await addDoc(albumsRef, {...data, dateAdded:serverTimestamp()}); toast("Added 🎉"); }
-        close();
-      }catch(err){ console.error(err); toast("Error saving 😢 Check Firebase config."); }
+        if(id){ await apiPost({ action:"update", id, ...data }); toast("Updated ✏️"); }
+        else { await apiPost({ action:"add", ...data }); toast("Added 🎉"); }
+        close(); fetchAlbums();
+      }catch(err){ console.error(err); toast("Error saving 😢 Check API_URL."); }
     });
   }
 
@@ -696,110 +734,31 @@
       state.settings.font=el.dataset.font; saveSettings(); applyTheme();
       ov.querySelectorAll("[data-font]").forEach(c=>c.classList.remove("active")); el.classList.add("active");
     }));
-    ov.querySelector("#btn-logout").addEventListener("click",()=>{ saveUser(null); close(); renderLogin(); });
+    ov.querySelector("#btn-logout").addEventListener("click",()=>{ saveUser(null); close(); stopPolling(); renderLogin(); });
   }
 
   // ═══════════════════════════════════════════════
-  // EXPORT TO EXCEL (client-side via SheetJS)
+  // EXPORT TO EXCEL
   // ═══════════════════════════════════════════════
   function exportToExcel() {
     if(!state.albums.length){ toast("Nothing to export"); return; }
     const rows = state.albums.map(a=>({
-      Izvođač: a.artist,
-      Album: a.album,
-      Godina: a.year,
-      Žanr: a.genre,
+      Izvođač: a.artist, Album: a.album, Godina: a.year, Žanr: a.genre,
       "Datum Preslušavanja": a.listenedDate || "",
-      "Ocjena (1-5)": a.rating,
-      "Dojim Albuma": a.impression,
-      "Istaknute Pjesme": a.standoutTracks,
-      "Preporučam": a.recommend,
-      "Komentari": a.comments,
-      "Tko": a.owner,
-      "Dodano": a.dateAdded? new Date(a.dateAdded.seconds*1000).toISOString() : ""
+      "Ocjena (1-5)": a.rating, "Dojim Albuma": a.impression,
+      "Istaknute Pjesme": a.standoutTracks, Preporučam: a.recommend,
+      Komentari: a.comments, Owner: a.owner, Timestamp: a.timestamp
     }));
     const wb = XLSX.utils.book_new();
-    // One sheet per user + "Sve"
     const allWs = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, allWs, "Sve");
-    USERS.forEach(u=>{
-      const userRows = rows.filter(r=>r.Tko===u);
-      if(userRows.length){
-        const ws = XLSX.utils.json_to_sheet(userRows);
-        XLSX.utils.book_append_sheet(wb, ws, u);
-      }
+    const owners = [...new Set(state.albums.map(a=>a.owner))].sort();
+    owners.forEach(u=>{
+      const userRows = rows.filter(r=>r.Owner===u);
+      if(userRows.length){ const ws=XLSX.utils.json_to_sheet(userRows); XLSX.utils.book_append_sheet(wb, ws, u); }
     });
     XLSX.writeFile(wb, `muzika-export-${new Date().toISOString().slice(0,10)}.xlsx`);
     toast("Downloaded Excel 📥");
-  }
-
-  // ═══════════════════════════════════════════════
-  // IMPORT FROM EXCEL
-  // ═══════════════════════════════════════════════
-  function importFromExcel() {
-    const inp = document.createElement("input");
-    inp.type = "file"; inp.accept = ".xlsx,.xls,.csv"; inp.style.display="none";
-    document.body.appendChild(inp);
-    inp.addEventListener("change", async (e)=>{
-      const file = e.target.files[0];
-      if(!file){ inp.remove(); return; }
-      try {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, {type:"array"});
-        let imported = 0;
-        const batch = writeBatch(db);
-        wb.SheetNames.forEach(name=>{
-          const ws = wb.Sheets[name];
-          const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-          if(!rows.length) return;
-          // Try to detect header row
-          let headerIdx = 0;
-          for(let i=0;i<Math.min(5,rows.length);i++){
-            const row = rows[i];
-            if(row.some(c=>/izvo|artist|album|godina|year|ocjena|rating|prepor/i.test(String(c)))){ headerIdx=i; break; }
-          }
-          const headers = rows[headerIdx].map(h=>String(h).toLowerCase().trim());
-          const idx = key => headers.findIndex(h=>h.includes(key));
-          const artistI = idx("izvo")!==-1? idx("izvo") : idx("artist");
-          const albumI = idx("album");
-          const yearI = idx("godina")!==-1? idx("godina") : idx("year");
-          const genreI = idx("žanr")!==-1? idx("žanr") : idx("genre");
-          const dateI = idx("datum")!==-1? idx("datum") : idx("date");
-          const ratingI = idx("ocjena")!==-1? idx("ocjena") : idx("rating");
-          const impressI = idx("dojim")!==-1? idx("dojim") : idx("impression");
-          const tracksI = idx("istak")!==-1? idx("istak") : idx("track");
-          const recI = idx("prepor")!==-1? idx("prepor") : idx("recommend");
-          const commentI = idx("koment")!==-1? idx("koment") : idx("comment");
-          const ownerGuess = USERS.find(u=>name.toLowerCase().includes(u.toLowerCase())) || state.user || "Unknown";
-
-          for(let i=headerIdx+1;i<rows.length;i++){
-            const r = rows[i];
-            if(!r[artistI] && !r[albumI]) continue;
-            const docRef = doc(collection(db,"albums"));
-            batch.set(docRef, {
-              artist: String(r[artistI]||"").trim(),
-              album: String(r[albumI]||"").trim(),
-              year: r[yearI]?String(r[yearI]).trim():"",
-              genre: r[genreI]?String(r[genreI]).trim():"",
-              listenedDate: r[dateI]? String(r[dateI]).trim(): null,
-              rating: r[ratingI]?String(r[ratingI]).trim():"",
-              impression: r[impressI]?String(r[impressI]).trim():"",
-              standoutTracks: r[tracksI]?String(r[tracksI]).trim():"",
-              recommend: r[recI]?String(r[recI]).trim():"",
-              comments: r[commentI]?String(r[commentI]).trim():"",
-              owner: ownerGuess,
-              dateAdded: serverTimestamp()
-            });
-            imported++;
-          }
-        });
-        if(imported>500){ toast("Too many rows (>500). Upload in chunks."); inp.remove(); return; }
-        await batch.commit();
-        toast(`Imported ${imported} albums 📤`);
-      } catch(err){ console.error(err); toast("Import failed 😢"); }
-      inp.remove();
-    });
-    inp.click();
   }
 
   // ═══════════════════════════════════════════════
@@ -813,31 +772,14 @@
   }
 
   // ═══════════════════════════════════════════════
-  // FIREBASE LISTENER
-  // ═══════════════════════════════════════════════
-  function subscribe() {
-    const q = query(albumsRef, orderBy("dateAdded","desc"));
-    onSnapshot(q, snapshot=>{
-      state.albums = snapshot.docs.map(d=>({id:d.id, ...d.data()}));
-      state.loading = false; state.firebaseReady = true;
-      renderTabs(); renderList();
-    }, err=>{
-      console.error(err);
-      state.loading = false; state.firebaseReady = false;
-      renderList();
-      toast("Firebase error — check config 🔥");
-    });
-  }
-
-  // ═══════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════
   function initApp() {
-    renderHeader(); renderTabs(); renderList(); subscribe(); applyTheme();
+    renderHeader(); renderTabs(); renderList(); startPolling(); applyTheme();
   }
 
   loadSettings(); loadUser(); applyTheme();
-  if(!state.user) renderLogin(); else initApp();
+  if(!state.user){ renderLogin(); } else { initApp(); }
 
 </script>
 </body>

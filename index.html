@@ -346,7 +346,10 @@
   // CONFIG: Replace with your Google Apps Script URL
   // Get it after deploying google-apps-script.js
   // ═══════════════════════════════════════════════
+  // Use /dev to avoid Google's redirect/cors issues
   const API_URL = "https://script.google.com/macros/s/AKfycbzJS-Tai3YMQH5xXeEyt_p2lFANFKrBKIVHgdCzjfOwSyVuceUzUB-VSlr6sgTGoI-4/exec";
+  // Fallback for CORS issues — use a no-redirect proxy
+  const CORS_API_URL = "https://script.google.com/macros/s/AKfycbzJS-Tai3YMQH5xXeEyt_p2lFANFKrBKIVHgdCzjfOwSyVuceUzUB-VSlr6sgTGoI-4/dev?action=getAlbums";
 
   // ═══════════════════════════════════════════════
   // STATE
@@ -409,15 +412,22 @@
   // ═══════════════════════════════════════════════
   async function apiGet() {
     const url = API_URL + "?action=getAlbums&cache=" + Date.now();
-    const res = await fetch(url, { method: "GET" });
-    return res.json();
+    const res = await fetch(url, { method: "GET", mode: "cors" });
+    if(!res.ok) throw new Error("GET "+res.status);
+    const text = await res.text();
+    // Google may redirect to HTML; try parse JSON from it
+    return JSON.parse(text);
   }
   async function apiPost(payload) {
-    const res = await fetch(API_URL, {
+    const url = API_URL;
+    const res = await fetch(url, {
       method: "POST",
+      mode: "cors",
       headers: { "Content-Type": "application/json" },
+      redirect: "follow",
       body: JSON.stringify(payload)
     });
+    if(!res.ok) throw new Error("POST "+res.status);
     return res.json();
   }
 

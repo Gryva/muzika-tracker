@@ -546,7 +546,8 @@
       if(state.activeTab!=="all" && a.owner!==state.activeTab) return false;
       if(!state.settings.showOthers && a.owner!==state.user) return false;
       if(!s) return true;
-      return `${a.artist} ${a.album} ${a.genre} ${a.impression} ${a.owner}`.toLowerCase().includes(s);
+      const hay = `${a.artist||''} ${a.album||''} ${a.genre||''} ${a.impression||''} ${a.owner||''}`.toLowerCase();
+      return hay.includes(s);
     });
     filtered.sort((a,b)=> (b.timestamp||"").localeCompare(a.timestamp||""));
 

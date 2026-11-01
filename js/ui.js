@@ -90,8 +90,7 @@ function renderTabs() {
   const anyNew = order.some(n => n !== state.tab && hasNew(n)) || (state.tab !== "listen" && listenNew);
   const cur = state.tab;
   const mineAlbums = cur === "listen" ? [] : v.albums.filter(a => a.owner === cur);
-  const rated = mineAlbums.map(a => parseRating(a.rating)?.v).filter(Boolean);
-  const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}${rated.length ? ` · ★ ${(rated.reduce((s, x) => s + x, 0) / rated.length).toFixed(1)}` : ""}`;
+  const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}`;
   const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span>Listen list`
     : `${avatar(cur, 26)}${isMe(cur) ? "My table" : esc(cur)}`;
   t.innerHTML = `
@@ -166,8 +165,10 @@ function renderList() {
       html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
         <header class="month-head">
           <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
-          <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Show" : "Hide"} ${name}"><h2>${mp.icon ? `<span class="month-icon">${esc(mp.icon)}</span>` : ""}${name}</h2></button>
-          <span class="month-count">${counts[month]} ${counts[month] === 1 ? "album" : "albuma"}</span>
+          <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Show" : "Hide"} ${name}">
+            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="${counts[month]} albums">${counts[month]}</span>
+          </button>
+          <span class="month-rule" aria-hidden="true"></span>
           <button class="month-gear" data-act="month-style" aria-label="Style ${name}" title="Style ${name}">⚙︎</button>
         </header><div class="album-list">`;
     }
@@ -176,12 +177,19 @@ function renderList() {
   list.innerHTML = html + `</div></section>`;
   if (state.scrollToEnd) {
     state.scrollToEnd = false;
-    requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    requestAnimationFrame(scrollToCurrentMonth);
   }
   albums.forEach(a => state.rendered.add(a.key));
 }
 
 const cardOpen = a => state.settings.cards === "open" ? !state.openCards.has(a.key) : state.openCards.has(a.key);
+
+/** "★ 4.5+" for the compact row; raw text if someone typed something unusual in the Sheet */
+function scoreHtml(r) {
+  if (!r) return "";
+  const p = parseRating(r);
+  return `<span class="score" title="Rating ${esc(r)}">★ <b>${esc(p ? fmtRating(p.v, p.plus) : r)}</b></span>`;
+}
 
 function cardHtml(a, i) {
   const mine = isMe(a.owner);
@@ -193,56 +201,55 @@ function cardHtml(a, i) {
   const expanded = cardOpen(a) || open;
   const grouped = {};
   rx.forEach(r => (grouped[r.emoji] = grouped[r.emoji] || []).push(r.user));
-  const rxSummary = Object.keys(grouped).slice(0, 3).join("");
+  const facts = [
+    a.year && esc(String(a.year).replace(/\.$/, "")),
+    a.genre && esc(a.genre),
+    a.duration && esc(a.duration),
+    a.listenedDate && "heard " + esc(fmtDate(a.listenedDate))
+  ].filter(Boolean);
+  const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
+  const rows = [
+    tracks && ["Standouts", esc(tracks)],
+    a.recommend && ["Recommend", recHtml(a.recommend)],
+    a.comments && ["Note", esc(a.comments)],
+    also.length && ["Also heard", `<span class="av-stack">${also.map(o => avatar(o, 20)).join("")}</span> ${esc(also.join(", "))}`]
+  ].filter(Boolean);
+  const moreOpen = state.moreFor === a.key;
 
   return `
   <article class="card ${fresh ? "enter fade-in" : ""} ${a.pending ? "pending" : ""} ${expanded ? "open" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--tint:${monthTint(a.month)};--i:${Math.min(i, 12)}">
     <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "collapse" : "expand"}">
       <div class="card-main">
         <div class="artist">${esc(a.artist)}</div>
-        <div class="album-name">${esc(a.album)}</div>
-        <div class="meta">
-          ${ratingHtml(a.rating)}
-          ${isNew(a) ? `<span class="new-pill tag">NEW</span>` : ""}
-          ${a.pending ? `<span class="pending-pill" title="Saved on this device, waiting to sync">⏳ syncing</span>` : ""}
-        </div>
+        <div class="album-name">${esc(a.album)}${isNew(a) ? ` <span class="new-pill tag">NEW</span>` : ""}${a.pending ? ` <span class="pending-pill" title="Saved on this device, waiting to sync">⏳</span>` : ""}</div>
       </div>
       <div class="peek">
-        <span class="peek-row">${also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}${rxSummary ? `<span class="peek-rx">${rxSummary}</span>` : ""}${cmts.length ? `<span class="peek-c">💬${cmts.length}</span>` : ""}</span>
+        ${!expanded && also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}
+        ${!expanded && cmts.length ? `<span class="peek-c" title="${cmts.length} comment${cmts.length === 1 ? "" : "s"}">💬${cmts.length}</span>` : ""}
+        ${scoreHtml(a.rating)}
         <span class="chev" aria-hidden="true"></span>
       </div>
     </div>
     ${expanded ? `<div class="card-more">
-    <div class="meta">
-      ${a.year ? `<span class="chip">${esc(String(a.year).replace(/\.$/, ""))}</span>` : ""}
-      ${a.genre ? `<span class="chip">${esc(a.genre)}</span>` : ""}
-      ${a.duration ? `<span class="chip">⏱ ${esc(a.duration)}</span>` : ""}
-      ${a.listenedDate ? `<span class="chip">📅 ${esc(fmtDate(a.listenedDate))}</span>` : ""}
-    </div>
-    ${(a.impression || a.standoutTracks || a.recommend || a.comments) ? `<div class="body">
-      ${a.impression ? `<div class="impression">“${esc(a.impression)}”</div>` : ""}
-      ${a.standoutTracks && a.standoutTracks !== "-" ? `<div class="tracks"><b>🎵</b> ${esc(a.standoutTracks)}</div>` : ""}
-      ${recHtml(a.recommend)}
-      ${a.comments ? `<div class="note">📝 ${esc(a.comments)}</div>` : ""}
-    </div>` : ""}
-    <div class="owner-line">${avatar(a.owner, 18)} ${esc(a.owner)}
-      ${also.length ? `<span class="also" title="Also in ${esc(also.join(", "))}'s table">also heard by <span class="av-stack">${also.map(o => avatar(o, 18)).join("")}</span></span>` : ""}
-    </div>
-    <div class="social">
-      ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}">${e}<small>${us.length}</small></button>`).join("")}
-      ${canWrite() ? (state.pickerFor === a.key
-        ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}">${e}</button>`).join("")}</span>`
-        : `<button class="rx" data-act="picker" title="React" aria-label="Add reaction">☺︎<small>+</small></button>`) : ""}
-      <button class="rx" data-act="thread" title="Comments" aria-label="Comments (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
-      <button class="rx ${state.linksFor === a.key ? "mine" : ""}" data-act="links" aria-expanded="${state.linksFor === a.key}" aria-label="Listen on…">🎧<small>Listen</small></button>
-      <span class="grow"></span>
-      <span class="actions">
-        ${canWrite() && !mine ? `<button class="mini" data-act="listen-me" title="Add to my listen list">＋ 🎧</button>` : ""}
-        ${mine ? `<button class="mini" data-act="edit">✏️ Edit</button><button class="mini danger" data-act="delete" title="Delete" aria-label="Delete album">🗑️</button>` : ""}
-      </span>
-    </div>
-    ${state.linksFor === a.key ? linksMenuHtml(a) : ""}
-    ${open ? threadHtml(a, cmts) : ""}
+      ${facts.length || parseRating(a.rating) ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : ""}${facts.map(f => `<span>${f}</span>`).join("")}</div>` : ""}
+      ${a.impression ? `<blockquote class="impression">${esc(a.impression)}</blockquote>` : ""}
+      ${rows.length ? `<dl class="details">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}
+      <div class="social">
+        ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}" aria-label="${e} ${us.length}">${e}<small>${us.length}</small></button>`).join("")}
+        ${canWrite() ? (state.pickerFor === a.key
+          ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}" aria-label="React ${e}">${e}</button>`).join("")}</span>`
+          : `<button class="rx" data-act="picker" title="React" aria-label="Add reaction">☺︎<small>+</small></button>`) : ""}
+        <button class="rx ${open ? "mine" : ""}" data-act="thread" aria-expanded="${open}" aria-label="Comments (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
+        <span class="grow"></span>
+        <button class="rx ${state.linksFor === a.key ? "mine" : ""}" data-act="links" aria-expanded="${state.linksFor === a.key}" aria-label="Listen on…">🎧<small>Listen</small></button>
+        ${canWrite() ? `<button class="rx more-btn ${moreOpen ? "mine" : ""}" data-act="more" aria-expanded="${moreOpen}" aria-label="More actions">⋯</button>` : ""}
+      </div>
+      ${moreOpen ? `<div class="more-menu" role="menu">
+        ${mine ? `<button role="menuitem" data-act="edit">✏️ Edit</button><button role="menuitem" class="danger" data-act="delete">🗑️ Delete</button>`
+          : `<button role="menuitem" data-act="listen-me">🎧 Add to my listen list</button>`}
+      </div>` : ""}
+      ${state.linksFor === a.key ? linksMenuHtml(a) : ""}
+      ${open ? threadHtml(a, cmts) : ""}
     </div>` : ""}
   </article>`;
 }
@@ -265,6 +272,7 @@ document.addEventListener("click", e => {
     if (state.pickerFor && !e.target.closest(".rx-picker")) { state.pickerFor = null; renderList(); }
     if (state.panelOpen && !e.target.closest(".panel") && !e.target.closest("#btn-bell")) closePanel();
     if (state.whoOpen && !e.target.closest(".tabs")) { state.whoOpen = false; renderTabs(); }
+    if ((state.moreFor || state.linksFor) && !e.target.closest(".more-menu, .links-menu")) { state.moreFor = state.linksFor = null; renderList(); }
     return;
   }
   const card = btn.closest(".card");
@@ -276,15 +284,16 @@ document.addEventListener("click", e => {
   } else if (act === "fold-month" || act === "month-style") {
     const m = +btn.closest(".month").dataset.month;
     if (act === "month-style") return openMonthStyle(m);
-    const s = state.settings, mp = { ...(s.months[m] || {}) };
-    mp.hidden = !mp.hidden; s.months[m] = mp; saveSettings(); renderList();
+    foldMonth(m);
   } else if (act === "react" && a && canWrite()) {
     const on = !(D.reactions.get(a.key) || []).some(r => r.user === state.me && r.emoji === btn.dataset.emoji);
     state.pickerFor = null;
     queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reaction");
     requestAnimationFrame(() => $(`.card[data-key="${CSS.escape(a.key)}"] .rx[data-emoji="${btn.dataset.emoji}"]`)?.classList.add("pop"));
   } else if (act === "links" && a) {
-    state.linksFor = state.linksFor === a.key ? null : a.key; renderList();
+    state.linksFor = state.linksFor === a.key ? null : a.key; state.moreFor = null; renderList();
+  } else if (act === "more" && a) {
+    state.moreFor = state.moreFor === a.key ? null : a.key; state.linksFor = null; renderList();
   } else if (act === "picker" && a) {
     state.pickerFor = a.key; renderList();
   } else if (act === "thread" && a) {
@@ -296,22 +305,98 @@ document.addEventListener("click", e => {
   } else if (act === "uncomment") {
     if (confirm("Delete your comment?")) queue({ action: "uncomment", id: btn.dataset.id, author: state.me }, "Delete comment");
   } else if (act === "edit" && a) {
-    openEditor(a);
+    state.moreFor = null; renderList(); openEditor(a);
   } else if (act === "delete" && a) {
-    deleteAlbum(a);
+    state.moreFor = null; renderList(); deleteAlbum(a);
   } else if (act === "listen-me" && a) {
+    state.moreFor = null; renderList();
     const exists = state.view.listen.some(l => l.forUser === state.me && (l.nk || normKey(l.artist, l.album)) === a.nk);
     if (exists) return toast("Already on your listen list 🎧");
     queue({ action: "listenAdd", id: uid(), forUser: state.me, artist: a.artist, album: a.album, addedBy: state.me, note: `from ${a.owner}`, ts: Date.now() }, "Listen list");
     toast("Added to your listen list 🎧");
   }
 });
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches || state.settings.style === "clear";
+const EASE = "cubic-bezier(.2, .8, .2, 1)";
+
+/** Open/close a card with a short height + fade animation. */
+// sticky bars: keep their heights in CSS variables so the switcher and month headers stick right below
+(() => {
+  const set = () => {
+    const h = $("#header")?.offsetHeight || 0;
+    document.documentElement.style.setProperty("--header-h", h + "px");
+    document.documentElement.style.setProperty("--chrome-h", chromeHeight() + "px");
+  };
+  const ro = new ResizeObserver(set);
+  ["#header", "#tabs"].forEach(s => $(s) && ro.observe($(s)));
+  set();
+})();
+
 function toggleCard(a) {
-  state.openCards.has(a.key) ? state.openCards.delete(a.key) : state.openCards.add(a.key);
-  if (!cardOpen(a)) state.openThreads.delete(a.key);
-  state.pickerFor = null;
-  renderList();
+  const sel = `.card[data-key="${CSS.escape(a.key)}"]`;
+  const wasOpen = cardOpen(a);
+  const flip = () => {
+    state.openCards.has(a.key) ? state.openCards.delete(a.key) : state.openCards.add(a.key);
+    if (!cardOpen(a)) state.openThreads.delete(a.key);
+    state.pickerFor = null; state.moreFor = null; state.linksFor = null;
+    renderList();
+  };
+  const more = $(sel + " .card-more");
+  if (calm()) return flip();
+  if (wasOpen && more) {
+    more.animate([{ height: more.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }], { duration: 200, easing: "ease-in" }).onfinish = flip;
+    more.style.overflow = "hidden";
+    return;
+  }
+  flip();
+  const m2 = $(sel + " .card-more");
+  if (m2) {
+    m2.style.overflow = "hidden";
+    const anim = m2.animate([{ height: "0px", opacity: 0 }, { height: m2.offsetHeight + "px", opacity: 1 }], { duration: 280, easing: EASE });
+    anim.onfinish = () => { m2.style.overflow = ""; };
+  }
 }
+
+/** Fold / unfold a whole month: the list slides shut or open, cards ripple back in. */
+function foldMonth(m) {
+  const s = state.settings;
+  const sec = $(`.month[data-month="${m}"]`), list = sec && $(".album-list", sec);
+  const set = hidden => { s.months[m] = { ...(s.months[m] || {}), hidden }; saveSettings(); };
+  const hide = !monthPref(m).hidden;
+  if (calm() || !list) { set(hide); return renderList(); }
+  if (hide) {
+    list.style.overflow = "hidden";
+    list.animate([{ height: list.offsetHeight + "px", opacity: 1 }, { height: "0px", opacity: 0 }], { duration: 260, easing: "ease-in" }).onfinish = () => { set(true); renderList(); };
+    return;
+  }
+  set(false);
+  state.view.albums.filter(a => (a.month || 0) === m).forEach(a => state.rendered.delete(a.key)); // let them ripple in
+  renderList();
+  const l2 = $(`.month[data-month="${m}"] .album-list`);
+  if (l2) {
+    l2.style.overflow = "hidden";
+    l2.animate([{ height: "0px" }, { height: l2.offsetHeight + "px" }], { duration: 320, easing: EASE }).onfinish = () => { l2.style.overflow = ""; };
+  }
+}
+
+/** Month name with its symbol on the left, right or both sides. */
+function monthTitleHtml(m) {
+  const mp = monthPref(m), name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
+  const ic = mp.icon ? `<span class="month-icon">${esc(mp.icon)}</span>` : "";
+  const side = mp.iconSide || "left";
+  return `${ic && side !== "right" ? ic : ""}<span class="month-title">${name}</span>${ic && side !== "left" ? ic.replace("month-icon", "month-icon r") : ""}`;
+}
+
+/** Open on the month we're in: its header sits right under the top bars, older months are above. */
+function scrollToCurrentMonth() {
+  const secs = $$("#list .month");
+  if (!secs.length) return;
+  const now = new Date().getMonth() + 1;
+  const target = secs.find(x => +x.dataset.month === now) || secs.filter(x => +x.dataset.month && +x.dataset.month <= now).pop() || secs[secs.length - 1];
+  const top = target.getBoundingClientRect().top + window.scrollY - chromeHeight() - 8;
+  window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+}
+function chromeHeight() { return ($("#header")?.offsetHeight || 0) + ($("#tabs")?.offsetHeight || 0); }
 document.addEventListener("keydown", e => {
   if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.act === "toggle-card") {
     e.preventDefault();

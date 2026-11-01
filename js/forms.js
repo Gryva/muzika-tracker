@@ -475,21 +475,29 @@ function openSettings(section) {
   ov.innerHTML = `<div class="sheet">
     <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">Postavke</div></div>
     <div class="sheet-body">
-      ${me ? `<div class="section-title" id="sec-profile">👤 Profil</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
-        <span id="s-av" style="cursor:pointer" title="Promijeni fotku">${avatar(me.name, 64)}</span>
-        <div style="flex:1"><div style="font-weight:800;font-size:17px">${esc(me.name)}</div>
-          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="mini" id="s-photo">📷 Promijeni fotku</button>${me.avatar ? `<button class="mini danger" id="s-nophoto">Makni fotku</button>` : ""}</div></div>
-      </div>
-      <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px" aria-label="Boja profila ${c}"></button>`).join("")}</div>` : ""}
-      <div class="link-pair">
-        <button class="sheet-link" id="s-rules" type="button">📜 Pravila i upute <span aria-hidden="true">›</span></button>
-        ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Otvori Google tablicu <span aria-hidden="true">↗</span></a>` : ""}
-        <button class="sheet-link" id="s-share" type="button">🔗 Pošalji link prijatelju <span aria-hidden="true">↗</span></button>
-      </div>
-      <div class="hint">Taj link uvijek prvo pita „Tko sluša?”, pa nitko ne upada u tuđu tablicu.</div>
+      ${me ? `<section class="set-card profile-card" id="sec-profile" aria-label="Profil">
+        <button class="pc-av" id="s-av" type="button" title="Promijeni fotku" aria-label="Promijeni fotku">${avatar(me.name, 60)}<span class="pc-cam" aria-hidden="true">📷</span></button>
+        <div class="pc-main">
+          <div class="pc-name">${esc(me.name)}</div>
+          <div class="pc-actions">
+            <button class="pc-btn" id="s-photo" type="button">Fotka</button>
+            <button class="pc-btn" id="s-color-toggle" type="button" aria-expanded="false" aria-controls="s-ucolor"><i class="pc-dot" style="background:${esc(me.color || "#888")}"></i>Boja</button>
+            ${me.avatar ? `<button class="pc-btn danger" id="s-nophoto" type="button">Makni fotku</button>` : ""}
+          </div>
+        </div>
+        <div class="color-pop" id="s-ucolor" hidden>${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Boja profila ${c}"></button>`).join("")}</div>
+      </section>` : ""}
 
-      <details class="group" ${section === "style" ? "open" : ""}><summary>🎞️ Stil <small class="group-val">${esc(style().name)}</small></summary>
+      <div class="set-heading">Muzika</div>
+      <nav class="set-card set-list-card" aria-label="Muzika">
+        <button class="set-item" id="s-rules" type="button"><span class="si-ic" aria-hidden="true">📜</span><span class="si-label">Pravila i upute</span><span class="si-go" aria-hidden="true">›</span></button>
+        ${state.snap?.sheetUrl ? `<a class="set-item" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener"><span class="si-ic" aria-hidden="true">📊</span><span class="si-label">Otvori Google tablicu</span><span class="si-go" aria-hidden="true">↗</span></a>` : ""}
+        <button class="set-item" id="s-share" type="button"><span class="si-ic" aria-hidden="true">🔗</span><span class="si-label">Pošalji link prijatelju</span><span class="si-go" aria-hidden="true">↗</span></button>
+      </nav>
+
+      <div class="set-heading">Izgled</div>
+      <div class="set-card">
+      <details class="group" ${section === "style" ? "open" : ""}><summary><span class="si-ic" aria-hidden="true">🎞️</span><span class="si-label">Stil</span><small class="group-val" id="gv-style">${esc(style().name)}</small></summary>
       <div class="styles" id="s-style">${Object.entries(STYLES).map(([k, st]) => `
         <button class="style-card ${s.style === k ? "on" : ""}" data-v="${k}" aria-pressed="${s.style === k}">
           <span class="style-swatch">${st.swatch.map(c => `<i style="background:${c}"></i>`).join("")}</span>
@@ -498,7 +506,7 @@ function openSettings(section) {
       <div class="hint">Boje mjeseci: dodirni ⚙︎ pored naziva mjeseca.</div>
       </details>
 
-      <details class="group"><summary>🎨 Boja, font i kartice</summary>
+      <details class="group"><summary><span class="si-ic" aria-hidden="true">🎨</span><span class="si-label">Boja, font i kartice</span><small class="group-val">${s.font === "auto" ? "iz stila" : ({ system: "Obični", rounded: "Obli", mono: "Mono", serif: "Serif" }[s.font] || s.font)}</small></summary>
       <div class="set-list">
         <div class="set-row">
           <div class="set-label">Boja naglaska <button class="mini" id="s-accent-reset">kao u stilu</button></div>
@@ -520,7 +528,7 @@ function openSettings(section) {
       </div>
       </details>
 
-      <details class="group"><summary>✨ Pozadina koja lebdi</summary>
+      <details class="group"><summary><span class="si-ic" aria-hidden="true">✨</span><span class="si-label">Pozadina koja lebdi</span><small class="group-val" id="gv-bg">${s.bg.on ? "uključena" : "isključena"}</small></summary>
       <div class="choice" id="s-bgset">
         <button data-v="off" class="${!s.bg.on ? "on" : ""}">Isključeno</button>
         ${Object.keys(BG_SETS).map(k => `<button data-v="${k}" class="${s.bg.on && s.bg.set === k ? "on" : ""}">${BG_SETS[k].slice(0, 3).join(" ")}</button>`).join("")}
@@ -536,13 +544,18 @@ function openSettings(section) {
 
       </details>
 
-      <details class="group"><summary>🛟 Sigurnosna kopija i sinkronizacija ${state.outbox.some(o => !o.done) ? `<span class="pending-pill">⏳ čeka</span>` : ""}</summary>
+      </div>
+
+      <div class="set-heading">Podaci</div>
+      <div class="set-card">
+      <details class="group"><summary><span class="si-ic" aria-hidden="true">🛟</span><span class="si-label">Sinkronizacija</span><small class="group-val">${state.outbox.some(o => !o.done) ? "⏳ čeka" : "✓ spremljeno"}</small></summary>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
         <button class="btn btn-ghost btn-sm" id="s-backup">💾 Preuzmi kopiju</button>
         <button class="btn btn-ghost btn-sm" id="s-sync">🔄 Sinkroniziraj sad</button>
       </div>
       <div class="hint">${state.outbox.filter(o => !o.done).length ? `⏳ Promjena na čekanju: ${state.outbox.filter(o => !o.done).length} – spremljene su na uređaju.` : "✓ Sve je sinkronizirano."} Aplikacija čuva kopiju svih podataka na uređaju, pa radi i bez interneta.</div>
       </details>
+      </div>
 
       <button class="link-btn switch-user" id="s-switch">Nisi ${me ? esc(me.name) : "ti"}? Promijeni korisnika</button>
     </div></div>`;
@@ -566,7 +579,7 @@ function openSettings(section) {
     $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on"));
     $("#s-accent-custom", ov).value = style().accent;
-    $(".group-val", ov).textContent = style().name;
+    $("#gv-style", ov).textContent = style().name;
     rerender();
   }));
   $$("#s-accent .sw[data-c]", ov).forEach(el => el.addEventListener("click", () => {
@@ -574,7 +587,7 @@ function openSettings(section) {
   }));
   $("#s-accent-reset", ov).addEventListener("click", () => { s.accent = null; $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on")); $("#s-accent-custom", ov).value = style().accent; saveSettings(); });
   $("#s-accent-custom", ov).addEventListener("input", e => { s.accent = e.target.value; $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on")); saveSettings(); });
-  choice("#s-bgset", v => { if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
+  choice("#s-bgset", v => { setTimeout(() => { $("#gv-bg", ov).textContent = s.bg.on ? "uključena" : "isključena"; }, 0); if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
   choice("#s-bgcolor", v => { s.bg.color = v; saveSettings(); });
   ["density", "speed", "opacity"].forEach(k => $("#s-" + k, ov).addEventListener("change", e => { s.bg[k] = +e.target.value; s.bg.on = true; saveSettings(); }));
   choice("#s-font", v => { s.font = v; saveSettings(); });
@@ -602,11 +615,17 @@ function openSettings(section) {
       } catch (e) { toast(e.message); }
     };
     $("#s-av", ov).addEventListener("click", setPhoto);
+    $("#s-color-toggle", ov).addEventListener("click", e => {
+      const pop = $("#s-ucolor", ov), open = pop.hidden;
+      pop.hidden = !open; e.currentTarget.setAttribute("aria-expanded", open);
+    });
     $("#s-photo", ov).addEventListener("click", setPhoto);
     $("#s-nophoto", ov)?.addEventListener("click", () => { queue({ action: "updateUser", name: me.name, avatar: "" }, "Fotka profila"); close(); });
     $$("#s-ucolor .sw", ov).forEach(el => el.addEventListener("click", () => {
       $$("#s-ucolor .sw", ov).forEach(x => x.classList.toggle("on", x === el));
       queue({ action: "updateUser", name: me.name, color: el.dataset.c }, "Boja profila");
+      $(".pc-dot", ov).style.background = el.dataset.c;
+      setTimeout(() => { $("#s-ucolor", ov).hidden = true; $("#s-color-toggle", ov).setAttribute("aria-expanded", false); }, 250);
     }));
   }
 }

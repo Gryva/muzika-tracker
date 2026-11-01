@@ -85,7 +85,8 @@ const state = {
   version: null,
   view: null,               // snapshot + pending offline ops applied
   outbox: [],
-  tab: "all",
+  tab: null,
+  whoOpen: false,
   listenFor: null,
   search: "",
   settings: structuredClone(DEFAULT_SETTINGS),

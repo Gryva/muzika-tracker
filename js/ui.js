@@ -46,43 +46,70 @@ function linksHtml(a) {
 function renderHeader() {
   const h = $("#header");
   const n = state.notifs.length;
-  const sheetUrl = state.snap?.sheetUrl;
   h.innerHTML = `
     <div class="header-inner">
-      <div class="logo">🎵 Muzika</div>
+      <div class="logo">Muzika</div>
       <span class="sync" id="sync"></span>
       <div class="spacer"></div>
       ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Activity" aria-label="Activity${n ? ` (${n} new)` : ""}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
-      ${sheetUrl ? `<a class="btn btn-ghost btn-icon" href="${esc(sheetUrl)}" target="_blank" rel="noopener" title="Open the Google Sheet" aria-label="Open the Google Sheet">📊</a>` : ""}
-      <button class="btn btn-ghost btn-icon" id="btn-settings" title="Customize" aria-label="Settings">⚙️</button>
-      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-me" title="${esc(state.me)}" aria-label="Your profile" style="padding:0">${avatar(state.me, 34)}</button>` : ""}
-      ${canWrite() ? `<button class="btn btn-primary btn-sm" id="btn-add">＋ Add</button>` : `<button class="btn btn-ghost btn-sm" id="btn-login">Log in</button>`}
+      ${canWrite() ? `<button class="btn btn-ghost btn-icon btn-me" id="btn-settings" title="Settings & profile" aria-label="Settings and profile">${avatar(state.me, 34)}</button>`
+        : `<button class="btn btn-ghost btn-icon" id="btn-settings" title="Settings" aria-label="Settings">⚙️</button><button class="btn btn-ghost btn-sm" id="btn-login">Log in</button>`}
     </div>`;
   setSync();
-  $("#btn-add")?.addEventListener("click", () => openEditor());
   $("#btn-settings").addEventListener("click", () => openSettings());
-  $("#btn-me")?.addEventListener("click", () => openSettings("profile"));
   $("#btn-login")?.addEventListener("click", () => { state.me = null; renderLogin(); });
   $("#btn-bell")?.addEventListener("click", togglePanel);
   if (n > (renderHeader._last || 0) && renderHeader._last !== undefined) $("#btn-bell")?.classList.add("wiggle");
   renderHeader._last = n;
+  renderFab();
 }
 
+/** The one big button: bottom-right, where the thumb already is. */
+function renderFab() {
+  let f = $("#fab");
+  if (!canWrite()) { f?.remove(); return; }
+  if (!f) {
+    f = document.createElement("button");
+    f.id = "fab"; f.className = "fab"; f.setAttribute("aria-label", "Add album"); f.title = "Add album";
+    f.innerHTML = `<span aria-hidden="true">＋</span>`;
+    f.addEventListener("click", () => openEditor());
+    document.body.appendChild(f);
+  }
+}
+
+/** Whose table you're looking at: one pill that folds open into everyone + the listen list. */
 function renderTabs() {
   const t = $("#tabs");
   const v = state.view;
   if (!v) { t.innerHTML = ""; return; }
   const order = users().map(u => u.name);
   if (canWrite()) order.sort((a, b) => (b === state.me) - (a === state.me));
+  if (state.tab !== "listen" && !order.includes(state.tab)) state.tab = canWrite() ? state.me : order[0];
   const count = n => v.albums.filter(a => a.owner === n).length;
   const hasNew = n => v.albums.some(a => a.owner === n && isNew(a));
   const listenNew = canWrite() && v.listen.some(l => l.forUser === state.me && l.addedBy !== state.me && l.ts > listenSeen());
+  const anyNew = order.some(n => n !== state.tab && hasNew(n)) || (state.tab !== "listen" && listenNew);
+  const cur = state.tab;
+  const mineAlbums = cur === "listen" ? [] : v.albums.filter(a => a.owner === cur);
+  const rated = mineAlbums.map(a => parseRating(a.rating)?.v).filter(Boolean);
+  const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}${rated.length ? ` · ★ ${(rated.reduce((s, x) => s + x, 0) / rated.length).toFixed(1)}` : ""}`;
+  const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span>Listen list`
+    : `${avatar(cur, 26)}${isMe(cur) ? "My table" : esc(cur)}`;
   t.innerHTML = `
-    <button class="tab ${state.tab === "all" ? "active" : ""}" data-tab="all">All <span class="tab-count">${v.albums.length}</span></button>
-    ${order.map(n => `<button class="tab ${state.tab === n ? "active" : ""}" data-tab="${esc(n)}">${avatar(n, 20)}${esc(n)} <span class="tab-count">${count(n)}</span>${hasNew(n) && state.tab !== n ? `<i class="dot"></i>` : ""}</button>`).join("")}
-    <button class="tab ${state.tab === "listen" ? "active" : ""}" data-tab="listen">🎧 Listen list${listenNew ? `<i class="dot"></i>` : ""}</button>`;
-  $$(".tab", t).forEach(b => b.addEventListener("click", () => {
-    state.tab = b.dataset.tab; state.pickerFor = null;
+    <div class="who">
+      <button class="who-btn" id="who-btn" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
+        ${label}${anyNew ? `<i class="dot" aria-label="New activity"></i>` : ""}<span class="chev" aria-hidden="true"></span>
+      </button>
+      <span class="who-stats">${stats}</span>
+    </div>
+    <div class="who-menu ${state.whoOpen ? "open" : ""}" id="who-menu" ${state.whoOpen ? "" : "hidden"}>
+      ${order.map(n => `<button class="who-item ${cur === n ? "active" : ""}" data-tab="${esc(n)}">${avatar(n, 30)}<span>${isMe(n) ? "Me" : esc(n)}</span><small>${count(n)}</small>${hasNew(n) && cur !== n ? `<i class="dot"></i>` : ""}</button>`).join("")}
+      <button class="who-item ${cur === "listen" ? "active" : ""}" data-tab="listen"><span class="av who-ll" style="--sz:30px">🎧</span><span>Listen list</span>${listenNew ? `<i class="dot"></i>` : ""}</button>
+    </div>`;
+  $("#who-btn", t).addEventListener("click", e => { e.stopPropagation(); state.whoOpen = !state.whoOpen; renderTabs(); if (state.whoOpen) $(".who-item.active", t)?.focus(); });
+  $$(".who-item", t).forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    state.tab = b.dataset.tab; state.pickerFor = null; state.whoOpen = false;
     renderTabs(); renderMain(); window.scrollTo({ top: 0, behavior: "smooth" });
   }));
 }
@@ -110,25 +137,12 @@ function renderMain() {
   const focusKey = act?.dataset?.cmt, sel = act?.selectionStart;
   const drafts = {};
   $$("input[data-cmt]", main).forEach(i => { if (i.value) drafts[i.dataset.cmt] = i.value; });
-  const searchVal = $("#search")?.value ?? state.search;
-
-  if (!$("#search")) {
-    main.innerHTML = `
-      <div class="filters">
-        <input class="search" id="search" type="search" placeholder="🔍 Search artist, album, genre, comments…" autocomplete="off">
-        <button class="btn btn-ghost btn-icon" id="btn-refresh" title="Refresh" aria-label="Refresh">🔄</button>
-      </div>
-      <div class="stats" id="stats"></div>
-      <div id="list"></div>`;
-    $("#search").value = searchVal;
-    $("#search").addEventListener("input", e => { state.search = e.target.value; renderList(); });
-    $("#btn-refresh").addEventListener("click", () => { toast("Refreshing…"); refresh(true); });
-  }
+  if (!$("#list")) main.innerHTML = `<div id="list"></div>`;
   renderList();
   Object.entries(drafts).forEach(([k, val]) => { const i = $(`input[data-cmt="${CSS.escape(k)}"]`); if (i) i.value = val; });
   if (focusKey) { const i = $(`input[data-cmt="${CSS.escape(focusKey)}"]`); if (i) { i.focus(); try { i.setSelectionRange(sel, sel); } catch (e) {} } }
 
-  if (state.tab !== "all" && state.tab !== state.me) {
+  if (state.tab !== state.me) {
     const owner = state.tab;
     clearTimeout(renderMain._seenT);
     renderMain._seenT = setTimeout(() => { if (state.tab === owner && markOwnerSeen(owner)) { state.notifs = computeNotifs(); renderHeader(); renderTabs(); } }, 1500);
@@ -138,21 +152,10 @@ function renderMain() {
 function renderList() {
   const v = state.view, list = $("#list");
   if (!list) return;
-  const q = norm(state.search);
-  let albums = v.albums.filter(a => state.tab === "all" || a.owner === state.tab);
-  if (q) albums = albums.filter(a => {
-    const cm = (D.comments.get(a.key) || []).map(c => c.text).join(" ");
-    return norm(`${a.artist} ${a.album} ${a.genre} ${a.impression} ${a.standoutTracks} ${a.owner} ${a.comments} ${cm}`).includes(q);
-  });
-  sortAlbums(albums);
-
-  const rated = albums.map(a => parseRating(a.rating)?.v).filter(Boolean);
-  $("#stats").textContent = albums.length
-    ? `${albums.length} album${albums.length === 1 ? "" : "s"}${rated.length ? ` · avg ★ ${(rated.reduce((s, x) => s + x, 0) / rated.length).toFixed(1)}` : ""}`
-    : "";
+  const albums = sortAlbums(v.albums.filter(a => a.owner === state.tab));
 
   if (!albums.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${q ? "No matches" : canWrite() && state.tab === state.me ? "Nothing yet – tap ＋ Add!" : "No albums yet"}</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${canWrite() && state.tab === state.me ? "Nothing yet – tap ＋ to add your first album" : "No albums yet"}</div>`;
     return;
   }
   let html = "", month = -1, i = 0;
@@ -205,7 +208,6 @@ function cardHtml(a, i) {
         </div>
       </div>
       <div class="peek">
-        ${state.tab === "all" ? avatar(a.owner, 22) : ""}
         <span class="peek-row">${also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}${rxSummary ? `<span class="peek-rx">${rxSummary}</span>` : ""}${cmts.length ? `<span class="peek-c">💬${cmts.length}</span>` : ""}</span>
         <span class="chev" aria-hidden="true"></span>
       </div>
@@ -261,6 +263,7 @@ document.addEventListener("click", e => {
   if (!btn) {
     if (state.pickerFor && !e.target.closest(".rx-picker")) { state.pickerFor = null; renderList(); }
     if (state.panelOpen && !e.target.closest(".panel") && !e.target.closest("#btn-bell")) closePanel();
+    if (state.whoOpen && !e.target.closest(".tabs")) { state.whoOpen = false; renderTabs(); }
     return;
   }
   const card = btn.closest(".card");
@@ -318,7 +321,7 @@ document.addEventListener("keydown", e => {
     const a = D.byKey.get(e.target.dataset.cmt);
     if (a) sendComment(a);
   }
-  if (e.key === "Escape") { $(".overlay")?.remove(); closePanel(); }
+  if (e.key === "Escape") { $(".overlay")?.remove(); closePanel(); if (state.whoOpen) { state.whoOpen = false; renderTabs(); $("#who-btn")?.focus(); } }
 });
 
 function sendComment(a) {
@@ -425,11 +428,10 @@ function closePanel(silent) {
 function jumpTo(key, openThread) {
   const a = D.byKey.get(key);
   if (!a) return;
-  state.tab = a.owner; state.search = "";
+  state.tab = a.owner;
   if (openThread) state.openThreads.add(key);
   if (!cardOpen(a)) toggleCard(a);
   if (monthPref(a.month).hidden) { state.settings.months[a.month].hidden = false; saveSettings(); }
-  if ($("#search")) $("#search").value = "";
   renderTabs(); renderMain();
   const el = $(`.card[data-key="${CSS.escape(key)}"]`);
   if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("enter"); el.classList.add("flash"); }

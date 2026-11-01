@@ -35,14 +35,14 @@ function renderLogin(joining = false) {
   el.className = "login";
   const list = users();
   if (!state.snap) {
-    el.innerHTML = `<div class="login-box"><div class="login-title">🎵 Muzika</div><div class="login-sub">${state.loading ? "Loading…" : "Can't reach the Sheet – " + esc(state.lastError)}</div>${state.loading ? `<div class="spinner"></div>` : `<button class="btn btn-primary" id="retry">Try again</button>`}</div>`;
+    el.innerHTML = `<div class="login-box"><div class="login-title">Muzika</div><div class="login-sub">${state.loading ? "Loading…" : "Can't reach the Sheet – " + esc(state.lastError)}</div>${state.loading ? `<div class="spinner"></div>` : `<button class="btn btn-primary" id="retry">Try again</button>`}</div>`;
     document.body.appendChild(el);
     $("#retry", el)?.addEventListener("click", () => { state.loading = true; renderLogin(); refresh(true).then(() => renderLogin()); });
     return;
   }
   if (!joining) {
     el.innerHTML = `<div class="login-box">
-      <div class="login-title">🎵 Muzika</div>
+      <div class="login-title">Muzika</div>
       <div class="login-sub">Who's listening? <small>(we'll remember you on this device)</small></div>
       <div class="user-grid">
         ${list.map(u => `<button class="user-btn" data-user="${esc(u.name)}">${avatar(u.name, 52)}${esc(u.name)}</button>`).join("")}
@@ -108,7 +108,7 @@ function login(name) {
   localStorage.setItem("muzika_user", name);
   $(".login")?.remove();
   loadSettings(); applyTheme(); loadSeen();
-  state.tab = "all"; state.rendered = new Set();
+  state.tab = name === GUEST ? null : name; state.rendered = new Set(); state.whoOpen = false;
   if (state.snap) adoptServerSettings();
   rebuild();
 }
@@ -357,7 +357,7 @@ function openSettings(section) {
   const ov = document.createElement("div");
   ov.className = "overlay";
   ov.innerHTML = `<div class="sheet">
-    <div class="sheet-header"><div class="sheet-title">⚙️ Make it yours</div><button class="btn btn-ghost btn-icon" data-close aria-label="Close">✕</button></div>
+    <div class="sheet-header"><div class="sheet-title">Settings</div><button class="btn btn-ghost btn-icon" data-close aria-label="Close">✕</button></div>
     <div class="sheet-body">
       ${me ? `<div class="section-title" id="sec-profile">👤 Profile</div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
@@ -365,7 +365,8 @@ function openSettings(section) {
         <div style="flex:1"><div style="font-weight:800;font-size:17px">${esc(me.name)}</div>
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="mini" id="s-photo">📷 Change photo</button>${me.avatar ? `<button class="mini danger" id="s-nophoto">Remove photo</button>` : ""}</div></div>
       </div>
-      <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<span class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px"></span>`).join("")}</div>` : ""}
+      <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px" aria-label="Profile colour ${c}"></button>`).join("")}</div>` : ""}
+      ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Open the Google Sheet <span aria-hidden="true">↗</span></a>` : ""}
 
       <div class="section-title">🎞️ Style</div>
       <div class="styles" id="s-style">${Object.entries(STYLES).map(([k, st]) => `
@@ -373,13 +374,20 @@ function openSettings(section) {
           <span class="style-swatch">${st.swatch.map(c => `<i style="background:${c}"></i>`).join("")}</span>
           <b style="font-family:${st.font}">${esc(st.name)}</b><small>${esc(st.desc)}</small>
         </button>`).join("")}</div>
-      <div class="hint">Month colours live on each month now – tap ⚙︎ next to a month's name.</div>
+      <div class="hint">Month colours: tap ⚙︎ next to a month's name.</div>
 
-      <div class="section-title">🎨 Accent colour <button class="mini" id="s-accent-reset">Style default</button></div>
+      <details class="group"><summary>🎨 Colour, font &amp; cards</summary>
+      <div class="fl" style="margin-top:6px">Accent colour <button class="mini" id="s-accent-reset">Style default</button></div>
       <div class="swatches" id="s-accent">${Object.values(THEMES).map(c => `<button class="sw ${c === s.accent ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Accent ${c}"></button>`).join("")}
         <input type="color" class="sw-input" id="s-accent-custom" value="${esc(s.accent || style().accent)}" title="Custom colour" aria-label="Custom accent colour"></div>
 
-      <div class="section-title">✨ Floating background</div>
+      <div class="fl" style="margin-top:16px">Font</div>
+      <div class="choice" id="s-font"><button data-v="auto" class="${s.font === "auto" ? "on" : ""}">style</button>${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${k}</button>`).join("")}</div>
+      <div class="fl" style="margin-top:16px">Album cards</div>
+      <div class="choice" id="s-cards">${[["collapsed", "Tidy – tap to open"], ["open", "Always open"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      </details>
+
+      <details class="group"><summary>✨ Floating background</summary>
       <div class="choice" id="s-bgset">
         <button data-v="off" class="${!s.bg.on ? "on" : ""}">Off</button>
         ${Object.keys(BG_SETS).map(k => `<button data-v="${k}" class="${s.bg.on && s.bg.set === k ? "on" : ""}">${BG_SETS[k].slice(0, 3).join(" ")}</button>`).join("")}
@@ -393,21 +401,17 @@ function openSettings(section) {
         <div class="fg"><label class="fl">Colours</label><div class="choice" id="s-bgcolor">${[["months", "Months"], ["accent", "Accent"], ["white", "White"]].map(([k, l]) => `<button data-v="${k}" class="${s.bg.color === k ? "on" : ""}">${l}</button>`).join("")}</div></div>
       </div>
 
-      <div class="section-title">🔤 Look</div>
-      <div class="choice" id="s-font"><button data-v="auto" class="${s.font === "auto" ? "on" : ""}">style</button>${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${k}</button>`).join("")}</div>
-      <div class="fl" style="margin-top:14px">Album cards</div>
-      <div class="choice" id="s-cards">${[["collapsed", "Tidy – tap to open"], ["open", "Always open"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      </details>
 
-      <div class="section-title">🛟 Safety</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${state.snap?.sheetUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Open Google Sheet</a>` : ""}
+      <details class="group"><summary>🛟 Backup &amp; sync ${state.outbox.some(o => !o.done) ? `<span class="pending-pill">⏳ waiting</span>` : ""}</summary>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
         <button class="btn btn-ghost btn-sm" id="s-backup">💾 Download backup</button>
         <button class="btn btn-ghost btn-sm" id="s-sync">🔄 Sync now</button>
       </div>
       <div class="hint">${state.outbox.filter(o => !o.done).length ? `⏳ ${state.outbox.filter(o => !o.done).length} change(s) saved on this device, waiting to sync.` : "✓ Everything is synced."} The app keeps a copy of all data on this device, so it works offline too.</div>
+      </details>
 
-      <div class="section-title">🚪 Account</div>
-      <button class="btn btn-ghost" style="width:100%" id="s-switch">Switch user</button>
+      <button class="link-btn switch-user" id="s-switch">Not ${me ? esc(me.name) : "you"}? Switch user</button>
     </div></div>`;
   document.body.appendChild(ov);
   const close = () => ov.remove();

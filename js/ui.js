@@ -24,8 +24,8 @@ function ratingHtml(r) {
 }
 function recHtml(r) {
   if (!r) return "";
-  const s = norm(r);
-  const [cls, ic] = /^(da|yes|ja)/.test(s) ? ["rec-yes", "✅"] : /^(ne|no)\b/.test(s) ? ["rec-no", "❌"] : ["rec-meh", "🤷"];
+  const s = norm(r), t = String(r).trim();
+  const [cls, ic] = /^DA/.test(t) && t === t.toUpperCase() ? ["rec-wow", "🔥"] : /^(da|yes|ja)/.test(s) ? ["rec-yes", "✅"] : /^(ne|no)\b/.test(s) ? ["rec-no", "❌"] : ["rec-meh", "🤷"];
   return `<span class="rec ${cls}">${ic} ${esc(r)}</span>`;
 }
 /** One "Listen" button; the choices only appear when you ask for them. Exact links when found, a search otherwise. */

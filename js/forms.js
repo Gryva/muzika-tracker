@@ -260,7 +260,9 @@ function openEditor(a = null, prefill = {}) {
   const f = { rating: a?.rating || "", recommend: a?.recommend || "", lookup: null };
   const ov = document.createElement("div");
   ov.className = "overlay editor";
-  const recOpts = ["Da", "Ne", "Meh"];
+  // bad → middle → good → really good ("DA" in capitals, like the group writes it)
+  const recOpts = ["Ne", "Meh", "Da", "DA"];
+  const recLabel = o => o === "DA" ? "🔥 DA" : o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o);
   if (f.recommend && !recOpts.includes(f.recommend)) recOpts.push(f.recommend);
   ov.innerHTML = `<form class="sheet" autocomplete="off" aria-label="${editing ? "Uredi album" : "Novi album"}">
     <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div>
@@ -286,13 +288,13 @@ function openEditor(a = null, prefill = {}) {
           <div class="track-chips hide" id="f-track-chips" aria-label="Pjesme s albuma – dodirni za dodavanje"></div></div>
       </div>
       <div class="step" style="--s:4">
-        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o)}</button>`).join("")}</div></div>
+        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${recLabel(o)}</button>`).join("")}</div></div>
       </div>
       <div class="step" style="--s:5">
-        <div class="fg"><label class="fl" for="f-comments">Komentar <small>– stupac „Komentarska sekcija”</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Još nešto?"></div>
+        <div class="fg fg-dur"><label class="fl" for="f-duration">Trajanje <small>– traži se samo, možeš i upisati</small></label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="npr. 45 min"></div>
+        <div class="hint found" id="f-found" aria-live="polite"></div>
       </div>
       <details class="group more step" style="--s:6"><summary>Detalji <small class="auto-sum" id="f-auto-sum">popunjavaju se sami</small></summary>
-        <div class="hint found" id="f-found" aria-live="polite"></div>
         <div class="row2">
           <div class="fg fg-date"><label class="fl" for="f-date">Datum slušanja</label>
             <div class="date-field"><input class="fi" id="f-date" inputmode="numeric" autocomplete="off" placeholder="dd.mm.gggg" maxlength="10" value="${esc(fmtDMY(editing ? isoDate(a.listenedDate) : todayIso()))}">
@@ -300,7 +302,6 @@ function openEditor(a = null, prefill = {}) {
               <input type="date" class="date-native" id="f-date-native" tabindex="-1" aria-hidden="true" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
             <div class="hint" id="f-date-hint" aria-live="polite"></div></div>
           <div class="fg"><label class="fl" for="f-year">Godina</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="automatski" inputmode="numeric"></div>
-          <div class="fg"><label class="fl" for="f-duration">Trajanje</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="automatski"></div>
           <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="automatski"></div>
         </div>
       </details>
@@ -423,10 +424,10 @@ function openEditor(a = null, prefill = {}) {
 
   const paintSum = () => {
     const t = monthTarget(), d = parseDMY(dateI.value);
-    const parts = [t && !t.bad ? `${MONTH_NAMES[t.m - 1]}${t.exists ? "" : " (novi)"}` : "", d && fmtDMY(d), $("#f-year", ov).value, $("#f-duration", ov).value, $("#f-genre", ov).value].filter(Boolean);
+    const parts = [t && !t.bad ? `${MONTH_NAMES[t.m - 1]}${t.exists ? "" : " (novi)"}` : "", d && fmtDMY(d), $("#f-year", ov).value, $("#f-genre", ov).value].filter(Boolean);
     $("#f-auto-sum", ov).textContent = parts.length ? parts.join(" · ") : "popunjavaju se sami";
   };
-  ["#f-year", "#f-duration", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
+  ["#f-year", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
   paintSum();
 
   let lt;
@@ -443,7 +444,7 @@ function openEditor(a = null, prefill = {}) {
       artist: val("#f-artist"), album: val("#f-album"), year: val("#f-year"), genre: val("#f-genre"),
       duration: val("#f-duration"), listenedDate: parseDMY(dateI.value) || "", rating: f.rating,
       impression: val("#f-impression"), standoutTracks: val("#f-tracks"), recommend: f.recommend,
-      comments: val("#f-comments"), mark: f.mark || ""
+      mark: f.mark || ""
     };
     if (!data.artist || !data.album) return toast("Izvođač i album su obavezni");
     if (dateI.value.trim() && !data.listenedDate) { $(".group.more", ov).open = true; dateI.focus(); return toast("Datum upiši kao dd.mm.gggg"); }

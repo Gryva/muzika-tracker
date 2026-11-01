@@ -2600,3 +2600,14 @@ button.logo:active { transform: scale(.96); }
 }
 @media (prefers-reduced-motion: reduce) { #dock #tabs, .dock .dock-btn { transition: none; } }
 #dock .who-stats { color: color-mix(in srgb, currentColor 62%, transparent); }
+
+/* v32: four-step recommendation – Ne · Meh · Da · DA */
+#f-rec { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#f-rec button { padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+#f-rec button[data-v="DA"] { font-weight: 900; letter-spacing: .04em; }
+#f-rec button[data-v="DA"].on { border-color: #F97316; background: color-mix(in srgb, #F97316 18%, var(--bg)); }
+.rec-wow { background: linear-gradient(90deg, rgba(249, 115, 22, .2), rgba(236, 72, 153, .2)); color: #F97316; font-weight: 900; letter-spacing: .03em; }
+[data-style="pop"] .rec-wow, [data-style="memphis"] .rec-wow { background: #FF6B6B; color: #000; }
+[data-style="swiss"] .rec-wow, [data-style="mag"] .rec-wow { background: #DC2626; color: #FFF; }
+.fg-dur .fi { max-width: 220px; }
+#f-rec button[data-v="DA"].on { border-color: #F97316; background: color-mix(in srgb, #F97316 30%, var(--bg)); color: var(--text); box-shadow: 0 0 0 1px #F97316, 0 0 18px rgba(249, 115, 22, .35); }

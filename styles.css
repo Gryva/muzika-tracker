@@ -2580,3 +2580,23 @@ button.logo:active { transform: scale(.96); }
 [data-style="swiss"] #dock .who-btn { border: 1px solid #000; padding: 6px 12px 6px 6px; font-size: 15px; }
 [data-style="mag"] #dock .who-btn { border: 1px solid #000; border-radius: 0; padding: 6px 12px 6px 6px; font-size: 12px; }
 [data-style="pop"] #dock .who-menu, [data-style="memphis"] #dock .who-menu { box-shadow: 8px -8px 0 #000; }
+
+/* v31: on someone else's table the switcher slides out to the full width and "Dodaj album" tucks away */
+#dock #tabs { flex: 0 1 auto; transition: max-width .5s cubic-bezier(.2, .8, .2, 1), flex-grow .5s cubic-bezier(.2, .8, .2, 1); }
+.dock.solo #tabs, #dock.solo #tabs { flex-grow: 1; max-width: 100%; }
+#dock .who, #dock .who-btn { width: 100%; }
+#dock .who-btn { justify-content: flex-start; }
+#dock .who-btn .chev { margin-left: auto; flex: none; }
+#dock .who-stats { display: none; margin-left: auto; padding-left: 10px; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--text-3); }
+#dock.solo .who-stats { display: inline; animation: fadeIn .4s .15s ease both; }
+#dock.solo .who-stats + .chev, #dock.solo .who-stats ~ .chev { margin-left: 8px; }
+.dock .dock-btn {
+  flex: 1 1 0; white-space: nowrap; overflow: hidden;
+  transition: flex-grow .5s cubic-bezier(.2, .8, .2, 1), max-width .5s cubic-bezier(.2, .8, .2, 1), opacity .3s ease, margin .5s cubic-bezier(.2, .8, .2, 1), padding .5s ease, transform .2s;
+}
+.dock.solo .dock-btn {
+  flex-grow: 0; max-width: 0; padding-left: 0; padding-right: 0; margin-left: -10px; opacity: 0; pointer-events: none;
+  border-width: 0; box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) { #dock #tabs, .dock .dock-btn { transition: none; } }
+#dock .who-stats { color: color-mix(in srgb, currentColor 62%, transparent); }

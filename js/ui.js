@@ -82,9 +82,10 @@ function renderFab() {
   }
   const row = $(".dock-row", d), tabs = $("#tabs");
   if (tabs && tabs.parentElement !== row) row.prepend(tabs);
-  const fab = $("#fab", d);
-  fab.hidden = !canWrite() || state.tab === "listen";
-  d.classList.toggle("solo", fab.hidden);
+  // "Dodaj album" only on your own table; elsewhere the switcher slides out to the full width
+  const fab = $("#fab", d), solo = !canWrite() || state.tab !== state.me;
+  d.classList.toggle("solo", solo);
+  fab.setAttribute("aria-hidden", solo); fab.tabIndex = solo ? -1 : 0;
 }
 
 /** Whose table you're looking at: one pill that folds open into everyone + the listen list. */
@@ -108,7 +109,7 @@ function renderTabs() {
   t.innerHTML = `
     <div class="who">
       <button class="who-btn" id="who-btn" aria-label="${cur === "listen" ? "Za slušanje" : isMe(cur) ? "Moja tablica" : "Tablica: " + esc(cur)} – promijeni" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
-        ${label}${anyNew ? `<i class="dot" aria-label="Nova aktivnost"></i>` : ""}<span class="chev" aria-hidden="true"></span>
+        ${label}${stats ? `<span class="who-stats">${stats}</span>` : ""}${anyNew ? `<i class="dot" aria-label="Nova aktivnost"></i>` : ""}<span class="chev" aria-hidden="true"></span>
       </button>
 
     </div>

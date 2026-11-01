@@ -97,7 +97,7 @@ function doPost(e) {
         add: addAlbum, update: updateAlbum, "delete": deleteAlbum,
         comment: addComment, uncomment: deleteComment, react: setReaction,
         listenAdd: addListen, listenRemove: removeListen,
-        addUser: addUser, updateUser: updateUser,
+        addUser: addUser, updateUser: updateUser, deleteUser: deleteUser,
         uploadImage: function () { return { success: true, url: pre.url }; },
         autoCovers: function () { return autoCoversWrite(pre.covers); }
       };
@@ -363,6 +363,44 @@ function requireUser(name) {
   var u = findUser(name);
   if (!u) throw new Error("Unknown user: " + name);
   return u;
+}
+
+/**
+ * Someone deletes their account: they disappear from the app, their comments / reactions /
+ * listen-list items go, but their own tab is only renamed ("OBRISANO – HELA") so the Sheet owner can restore it.
+ * The client must send the name twice (typed confirmation) so a stray call can't do this.
+ */
+function deleteUser(p) {
+  var u = findUser(p.name);
+  if (!u) throw new Error("Korisnik ne postoji");
+  if (String(p.confirm || "").trim().toUpperCase() !== u.name.toUpperCase()) throw new Error("Potvrda se ne podudara");
+  var name = u.name;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1) their tab stays as a backup under a new name
+  var sheet = ss.getSheetByName(u.sheet), backup = "";
+  if (sheet) {
+    backup = "OBRISANO – " + u.sheet;
+    if (ss.getSheetByName(backup)) backup += " " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd HH.mm");
+    sheet.setName(backup);
+    sheet.setTabColor("#999999");
+  }
+  // 2) their traces on other people's albums + listen lists (bottom-up so row numbers stay valid)
+  var drop = function (tab, test) {
+    var rows = readTab(tab).filter(test).sort(function (a, b) { return b._row - a._row; });
+    var t = getTab(tab);
+    rows.forEach(function (r) { t.deleteRow(r._row); });
+    return rows.length;
+  };
+  var removed = {
+    comments: drop("comments", function (c) { return c.author === name; }),
+    reactions: drop("reactions", function (r) { return r.user === name; }),
+    listen: drop("listen", function (l) { return l.forUser === name || l.addedBy === name; })
+  };
+  // 3) finally out of the users list
+  drop("users", function (x) { return x.name === name; });
+  _users = null;
+  return { success: true, backup: backup, removed: removed };
 }
 
 function addUser(p) {

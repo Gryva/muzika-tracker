@@ -108,7 +108,7 @@ function login(name) {
   localStorage.setItem("muzika_user", name);
   $(".login")?.remove();
   loadSettings(); applyTheme(); loadSeen();
-  state.tab = name === GUEST ? null : name; state.rendered = new Set(); state.whoOpen = false;
+  state.tab = name === GUEST ? null : name; state.rendered = new Set(); state.whoOpen = false; state.scrollToEnd = true;
   if (state.snap) adoptServerSettings();
   rebuild();
 }
@@ -179,53 +179,46 @@ function fmtDurationLike(sec, owner) {
 }
 
 // ═══════════════ add / edit album ═══════════════
+/** Calm, two-step form: the essentials first, everything else folded under "More details".
+ *  Year / genre / duration / Spotify + YouTube links are found automatically in the background. */
 function openEditor(a = null, prefill = {}) {
   if (!canWrite()) return;
   const editing = !!a;
   const src = a || prefill;
-  const f = {
-    rating: a?.rating || "", recommend: a?.recommend || "",
-    cover: a?.cover || "", coverSource: a?.cover ? "keep" : "", lookup: null, coverMode: a?.cover ? "keep" : "auto"
-  };
+  const f = { rating: a?.rating || "", recommend: a?.recommend || "", lookup: null };
   const ov = document.createElement("div");
-  ov.className = "overlay";
+  ov.className = "overlay editor";
   const recOpts = ["Da", "Ne", "Meh"];
   if (f.recommend && !recOpts.includes(f.recommend)) recOpts.push(f.recommend);
-  ov.innerHTML = `<form class="sheet" autocomplete="off">
-    <div class="sheet-header"><div class="sheet-title">${editing ? "✏️ Edit album" : "＋ New album"}</div><button type="button" class="btn btn-ghost btn-icon" data-close>✕</button></div>
+  const hasMore = editing && (a.year || a.genre || a.duration || a.standoutTracks || a.comments);
+  ov.innerHTML = `<form class="sheet" autocomplete="off" aria-label="${editing ? "Edit album" : "New album"}">
+    <div class="sheet-header"><div class="sheet-title">${editing ? "Edit album" : "New album"}</div><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Close">✕</button></div>
     <div class="sheet-body">
-      <div class="row2">
-        <div class="fg"><label class="fl">Artist</label><input class="fi" id="f-artist" value="${esc(src.artist || "")}" placeholder="e.g. Pink Floyd" required></div>
-        <div class="fg"><label class="fl">Album</label><input class="fi" id="f-album" value="${esc(src.album || "")}" placeholder="e.g. Animals" required></div>
+      <div class="step" style="--s:0">
+        <div class="fg"><label class="fl" for="f-artist">Artist</label><input class="fi fi-big" id="f-artist" value="${esc(src.artist || "")}" placeholder="e.g. Pink Floyd" required></div>
+        <div class="fg"><label class="fl" for="f-album">Album</label><input class="fi fi-big" id="f-album" value="${esc(src.album || "")}" placeholder="e.g. Animals" required></div>
+        <div class="hint hide" id="f-also"></div>
+        <div class="hint found" id="f-found" aria-live="polite"></div>
       </div>
-      <div class="hint hide" id="f-also"></div>
-      <div class="fg">
-        <label class="fl">Cover <small>– found automatically, or upload your own</small></label>
-        <div class="cover-pick">
-          <div class="cover" id="f-cover" style="--m:${monthColor(a?.month)}" data-ini="?"></div>
-          <div class="cover-btns">
-            <button type="button" class="mini" id="f-upload">📷 Upload my own</button>
-            <button type="button" class="mini" id="f-find">🔍 Find automatically</button>
-            <button type="button" class="mini danger" id="f-nocover">✕ No cover</button>
-            <span class="hint" id="f-cover-hint"></span>
-          </div>
+      <div class="step" style="--s:1">
+        <div class="fg"><label class="fl">Rating</label><div id="f-rating"></div></div>
+      </div>
+      <div class="step" style="--s:2">
+        <div class="fg"><label class="fl">Recommend?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o)}</button>`).join("")}</div></div>
+      </div>
+      <div class="step" style="--s:3">
+        <div class="fg"><label class="fl" for="f-impression">Impression</label><textarea class="ft" id="f-impression" placeholder="How did it make you feel?">${esc(a?.impression || "")}</textarea></div>
+      </div>
+      <details class="group more step" style="--s:4" ${hasMore ? "open" : ""}><summary>More details <small>– date, year, genre, tracks…</small></summary>
+        <div class="row3">
+          <div class="fg"><label class="fl" for="f-date">Listened</label><input type="date" class="fi" id="f-date" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
+          <div class="fg"><label class="fl" for="f-year">Year</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="auto" inputmode="numeric"></div>
+          <div class="fg"><label class="fl" for="f-duration">Duration</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="auto"></div>
         </div>
-      </div>
-      <div class="fg"><label class="fl">Rating <small>– tap or drag the stars, + for "even better"</small></label><div id="f-rating"></div></div>
-      <div class="fg"><label class="fl">Recommend?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o)}</button>`).join("")}</div></div>
-      <div class="row3">
-        <div class="fg"><label class="fl">Year</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="1977" inputmode="numeric"></div>
-        <div class="fg"><label class="fl">Listened</label><input type="date" class="fi" id="f-date" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
-        <div class="fg"><label class="fl">Duration</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="42 min"></div>
-      </div>
-      <div class="fg"><label class="fl">Genre</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="Progressive rock"></div>
-      <div class="fg"><label class="fl">Impression</label><textarea class="ft" id="f-impression" placeholder="How did it make you feel?">${esc(a?.impression || "")}</textarea></div>
-      <div class="fg"><label class="fl">Standout tracks</label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
-      <div class="fg"><label class="fl">Note <small>– goes in the comment column of your Sheet</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Anything else?"></div>
-      <div class="row2">
-        <div class="fg"><label class="fl">Spotify link <small>(auto)</small></label><input class="fi" id="f-spotify" value="${esc(a?.spotify || "")}" placeholder="https://open.spotify.com/album/…" inputmode="url"></div>
-        <div class="fg"><label class="fl">YouTube link <small>(auto)</small></label><input class="fi" id="f-youtube" value="${esc(a?.youtube || "")}" placeholder="https://youtube.com/…" inputmode="url"></div>
-      </div>
+        <div class="fg"><label class="fl" for="f-genre">Genre</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="auto"></div>
+        <div class="fg"><label class="fl" for="f-tracks">Standout tracks</label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
+        <div class="fg"><label class="fl" for="f-comments">Note <small>– goes in the comment column of your Sheet</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Anything else?"></div>
+      </details>
     </div>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" data-close>Cancel</button>
@@ -233,7 +226,7 @@ function openEditor(a = null, prefill = {}) {
     </div>
   </form>`;
   document.body.appendChild(ov);
-  const close = () => ov.remove();
+  const close = () => { ov.classList.add("closing"); setTimeout(() => ov.remove(), 220); };
   $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
 
@@ -243,13 +236,7 @@ function openEditor(a = null, prefill = {}) {
     $$("#f-rec button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === f.recommend));
   }));
 
-  const artistI = $("#f-artist", ov), albumI = $("#f-album", ov), spotifyI = $("#f-spotify", ov);
-  const coverEl = $("#f-cover", ov), hint = $("#f-cover-hint", ov);
-  const paintCover = () => {
-    coverEl.dataset.ini = ((artistI.value || "?")[0] + (albumI.value || "")[0] || "").toUpperCase();
-    coverEl.innerHTML = f.cover ? `<img class="ok" src="${esc(f.cover)}" referrerpolicy="no-referrer" alt="">` : "";
-  };
-  paintCover();
+  const artistI = $("#f-artist", ov), albumI = $("#f-album", ov), found = $("#f-found", ov);
 
   // "others listened to this too" + duplicate warning
   const checkAlso = () => {
@@ -257,77 +244,58 @@ function openEditor(a = null, prefill = {}) {
     const owners = [...(D.byNk.get(nk) || [])].filter(o => !a || o !== a.owner);
     const dupe = !editing && owners.includes(state.me);
     const others = owners.filter(o => o !== state.me);
-    el.classList.toggle("hide", !albumI.value || (!others.length && !dupe));
     el.className = "hint " + (dupe ? "warn" : "ok") + (!albumI.value || (!others.length && !dupe) ? " hide" : "");
     el.innerHTML = dupe ? "⚠️ You already logged this album." : others.length ? `✨ ${others.map(esc).join(", ")} listened to this too!` : "";
   };
 
+  // quietly fill year / genre / duration (only empty or still-automatic fields) and remember the links
   let lookupSeq = 0;
-  const lookup = async (manual) => {
+  const auto = {};
+  const fillAuto = (id, value) => {
+    const el = $(id, ov);
+    if (value && (!el.value || el.value === auto[id])) { el.value = auto[id] = value; return true; }
+    return false;
+  };
+  const lookup = async () => {
     const artist = artistI.value.trim(), album = albumI.value.trim();
-    if (!artist || !album) { if (manual) toast("Type artist and album first"); return; }
-    if (!manual && f.coverMode !== "auto") return;
+    if (!artist || !album) { found.textContent = ""; return; }
     const seq = ++lookupSeq;
-    hint.textContent = "Searching…"; hint.className = "hint";
+    found.textContent = "Looking it up…"; found.className = "hint found";
     try {
-      const r = (await apiPost({ action: "lookup", artist, album, spotify: spotifyI.value.trim() })).result;
+      const r = (await apiPost({ action: "lookup", artist, album })).result;
       if (seq !== lookupSeq) return;
       f.lookup = r;
-      if (r?.cover) { f.cover = r.cover; f.coverSource = r.source; f.coverMode = "auto"; paintCover(); }
-      if (r?.year && !$("#f-year", ov).value) $("#f-year", ov).value = r.year;
-      if (r?.genre && !$("#f-genre", ov).value) $("#f-genre", ov).value = r.genre;
-      // fill the link fields, but never overwrite a link the user typed themselves
-      const ytI = $("#f-youtube", ov);
-      if (!spotifyI.value || spotifyI.value === f.autoSp) spotifyI.value = f.autoSp = r?.spotify || "";
-      if (!ytI.value || ytI.value === f.autoYt) ytI.value = f.autoYt = r?.youtube || "";
-      const durI = $("#f-duration", ov), dur = fmtDurationLike(r?.durationSec, a?.owner || state.me);
-      if (!durI.value || durI.value === f.autoDur) durI.value = f.autoDur = dur;
-      const lk = [r?.spotify && "Spotify", r?.youtube && "YouTube", r?.durationSec && "duration"].filter(Boolean);
-      hint.textContent = (r?.cover ? `Found via ${r.source === "itunes" ? "Apple Music" : r.source === "deezer" ? "Deezer" : "Spotify"} ✓` : "No cover found – upload one?") + (lk.length ? ` · ${lk.join(", ")} ✓` : "");
-      hint.className = "hint " + (r?.cover ? "ok" : "warn");
+      const got = [];
+      if (fillAuto("#f-year", r?.year)) got.push("year");
+      if (fillAuto("#f-genre", r?.genre)) got.push("genre");
+      if (fillAuto("#f-duration", fmtDurationLike(r?.durationSec, a?.owner || state.me))) got.push("duration");
+      if (r?.spotify || r?.youtube || r?.apple || r?.deezer) got.push("listening links");
+      found.textContent = got.length ? `✓ Found ${got.join(", ")}` : r ? "✓ Found it" : "";
+      found.className = "hint found ok";
     } catch (e) {
-      if (seq === lookupSeq) { hint.textContent = isNetworkError(e) ? "Offline – will look it up when synced" : e.message; hint.className = "hint warn"; }
+      if (seq === lookupSeq) found.textContent = isNetworkError(e) ? "Offline – details get filled in later" : "";
     }
   };
   let lt;
-  const onNameChange = () => { checkAlso(); paintCover(); clearTimeout(lt); lt = setTimeout(() => lookup(false), 700); };
+  const onNameChange = () => { checkAlso(); clearTimeout(lt); lt = setTimeout(lookup, 700); };
   artistI.addEventListener("input", onNameChange);
   albumI.addEventListener("input", onNameChange);
-  spotifyI.addEventListener("change", () => { if (spotifyI.value.includes("open.spotify.com")) { f.coverMode = "auto"; lookup(true); } });
-  $("#f-find", ov).addEventListener("click", () => { f.coverMode = "auto"; lookup(true); });
-  $("#f-nocover", ov).addEventListener("click", () => { f.cover = ""; f.coverMode = "none"; f.lookup = null; paintCover(); hint.textContent = "No cover"; hint.className = "hint"; });
-  $("#f-upload", ov).addEventListener("click", async () => {
-    const file = await pickFile(); if (!file) return;
-    hint.textContent = "Uploading…"; hint.className = "hint";
-    try {
-      const data = await resizeImage(file, 600, false);
-      f.cover = data; paintCover();
-      const r = await apiPost({ action: "uploadImage", dataUrl: data, name: `${artistI.value}-${albumI.value}` });
-      f.cover = r.url; f.coverSource = "user"; f.coverMode = "custom"; paintCover();
-      hint.textContent = "Your cover ✓"; hint.className = "hint ok";
-    } catch (e) {
-      f.cover = a?.cover || ""; paintCover();
-      hint.textContent = isNetworkError(e) ? "Uploading needs internet" : e.message; hint.className = "hint warn";
-    }
-  });
-  if (prefill.artist && !editing) { checkAlso(); lookup(false); }
+  if (prefill.artist && !editing) { checkAlso(); lookup(); }
   if (editing) checkAlso();
 
   ov.querySelector("form").addEventListener("submit", e => {
     e.preventDefault();
-    if (f.cover.startsWith("data:")) return toast("Wait for the upload to finish…");
     const val = id => $(id, ov).value.trim();
     const data = {
       artist: val("#f-artist"), album: val("#f-album"), year: val("#f-year"), genre: val("#f-genre"),
       duration: val("#f-duration"), listenedDate: $("#f-date", ov).value || "", rating: f.rating,
       impression: val("#f-impression"), standoutTracks: val("#f-tracks"), recommend: f.recommend,
-      comments: val("#f-comments"), spotify: val("#f-spotify"), youtube: val("#f-youtube")
+      comments: val("#f-comments")
     };
     if (!data.artist || !data.album) return toast("Artist and album are required");
+    const L = f.lookup || {};
+    ["spotify", "youtube", "apple", "deezer"].forEach(k => { if (L[k] && !(editing && a[k])) data[k] = L[k]; });
     if (editing) {
-      if (f.coverMode !== "keep") { data.cover = f.cover; data.coverSource = f.coverSource; }
-      if (f.lookup?.apple && !a.apple) data.apple = f.lookup.apple;
-      if (f.lookup?.deezer && !a.deezer) data.deezer = f.lookup.deezer;
       if (String(a.id).startsWith("tmp_")) {
         const op = state.outbox.find(o => !o.done && o.payload.action === "add" && "tmp_" + o.payload.clientId === a.id);
         if (op) { Object.assign(op.payload, data); saveOutbox(); rebuild(); close(); return; }
@@ -337,17 +305,14 @@ function openEditor(a = null, prefill = {}) {
       toast("Saved ✏️");
     } else {
       Object.assign(data, { owner: state.me, clientId: uid(), ts: Date.now() });
-      if (f.cover) { data.cover = f.cover; data.coverSource = f.coverSource; }
-      if (f.coverMode === "none") data.lookup = false;
-      if (f.lookup?.apple) data.apple = f.lookup.apple;
-      if (f.lookup?.deezer) data.deezer = f.lookup.deezer;
       queue({ action: "add", ...data }, "Add album");
+      state.scrollToEnd = true;
       const others = [...(D.byNk.get(normKey(data.artist, data.album)) || [])].filter(o => o !== state.me);
       toast(others.length ? `Added 🎉 ✨ ${others.join(", ")} heard it too!` : "Added 🎉", 3500);
     }
     close();
   });
-  setTimeout(() => (editing ? null : artistI.value ? $("#f-impression", ov) : artistI)?.focus(), 50);
+  setTimeout(() => (editing ? null : artistI.value ? $("#f-impression", ov) : artistI)?.focus({ preventScroll: true }), 380);
 }
 
 // ═══════════════ settings ═══════════════
@@ -368,13 +333,14 @@ function openSettings(section) {
       <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px" aria-label="Profile colour ${c}"></button>`).join("")}</div>` : ""}
       ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Open the Google Sheet <span aria-hidden="true">↗</span></a>` : ""}
 
-      <div class="section-title">🎞️ Style</div>
+      <details class="group" ${section === "style" ? "open" : ""}><summary>🎞️ Style <small class="group-val">${esc(style().name)}</small></summary>
       <div class="styles" id="s-style">${Object.entries(STYLES).map(([k, st]) => `
         <button class="style-card ${s.style === k ? "on" : ""}" data-v="${k}" aria-pressed="${s.style === k}">
           <span class="style-swatch">${st.swatch.map(c => `<i style="background:${c}"></i>`).join("")}</span>
-          <b style="font-family:${st.font}">${esc(st.name)}</b><small>${esc(st.desc)}</small>
+          <b style="font-family:${st.display || st.font}">${esc(st.name)}</b><small>${esc(st.desc)}</small>
         </button>`).join("")}</div>
       <div class="hint">Month colours: tap ⚙︎ next to a month's name.</div>
+      </details>
 
       <details class="group"><summary>🎨 Colour, font &amp; cards</summary>
       <div class="fl" style="margin-top:6px">Accent colour <button class="mini" id="s-accent-reset">Style default</button></div>
@@ -434,6 +400,7 @@ function openSettings(section) {
     $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on"));
     $("#s-accent-custom", ov).value = style().accent;
+    $(".group-val", ov).textContent = style().name;
     rerender();
   }));
   $$("#s-accent .sw", ov).forEach(el => el.addEventListener("click", () => {
@@ -493,6 +460,8 @@ function openMonthStyle(m) {
       <div class="fg" style="margin-top:16px"><label class="fl" for="m-tint">Card tint <small id="m-tint-v">${monthTint(m)}</small></label><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"></div>
       <div class="fl">Symbol</div>
       <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button class="${(mp().icon || "") === ic ? "on" : ""}" data-v="${esc(ic)}" aria-label="${ic ? "Symbol " + ic : "No symbol"}">${ic || "∅"}</button>`).join("")}</div>
+      <div class="fg" style="margin-top:10px"><label class="fl" for="m-icon-custom">Or type your own <small>– any emoji, letter or symbol</small></label>
+        <input class="fi" id="m-icon-custom" maxlength="12" placeholder="e.g. 🌧️  ✌︎  ₍ᐢ•ﻌ•ᐢ₎" value="${esc(MONTH_ICONS.includes(mp().icon || "") ? "" : mp().icon)}"></div>
       <div class="fg" style="margin-top:16px"><label class="toggle"><input type="checkbox" id="m-hidden" ${mp().hidden ? "checked" : ""}> Fold this month (hide its albums)</label></div>
       <button class="btn btn-ghost btn-sm" id="m-reset">Reset ${esc(name)}</button>
     </div></div>`;
@@ -512,8 +481,15 @@ function openMonthStyle(m) {
   $("#m-custom", ov).addEventListener("input", e => { $$("#m-color .sw", ov).forEach(x => x.classList.remove("on")); mp().color = e.target.value; apply(); });
   $("#m-tint", ov).addEventListener("input", e => { mp().tint = +e.target.value; $("#m-tint-v", ov).textContent = e.target.value + "%"; apply(); });
   $$("#m-icon button", ov).forEach(b => b.addEventListener("click", () => {
-    $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x === b)); mp().icon = b.dataset.v; apply();
+    $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x === b)); mp().icon = b.dataset.v; $("#m-icon-custom", ov).value = ""; apply();
   }));
+  $("#m-icon-custom", ov).addEventListener("input", e => {
+    // keep it short: at most 3 visible characters (emoji with skin tones etc. count as one)
+    let v = e.target.value.trim();
+    try { v = [...new Intl.Segmenter().segment(v)].slice(0, 3).map(x => x.segment).join(""); } catch (err) { v = [...v].slice(0, 3).join(""); }
+    $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === v));
+    mp().icon = v; apply();
+  });
   $("#m-hidden", ov).addEventListener("change", e => { mp().hidden = e.target.checked; apply(); });
   $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; close(); apply(); });
 }
@@ -547,6 +523,7 @@ function renderBg() {
   const saved = localStorage.getItem("muzika_user");
   state.me = saved || null;
   loadSettings(); applyTheme(); loadSeen();
+  state.scrollToEnd = true;
   if (state.me) rebuild(); else renderLogin();
   refresh(true).then(() => { if (!state.me) renderLogin(); });
   startPolling();

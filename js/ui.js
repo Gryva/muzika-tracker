@@ -28,18 +28,17 @@ function recHtml(r) {
   const [cls, ic] = /^(da|yes|ja)/.test(s) ? ["rec-yes", "✅"] : /^(ne|no)\b/.test(s) ? ["rec-no", "❌"] : ["rec-meh", "🤷"];
   return `<span class="rec ${cls}">${ic} ${esc(r)}</span>`;
 }
-function coverHtml(a, cls = "") {
-  const ini = ((a.artist || "?").slice(0, 1) + (a.album || "").slice(0, 1)).toUpperCase();
-  return `<div class="cover ${cls}" data-ini="${esc(ini)}">${a.cover ? `<img src="${esc(a.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="this.classList.add('ok')" onerror="this.remove()">` : ""}</div>`;
-}
-function linksHtml(a) {
+/** One "Listen" button; the choices only appear when you ask for them. Exact links when found, a search otherwise. */
+function linksMenuHtml(a) {
   const q = encodeURIComponent(`${a.artist} ${a.album}`);
-  const L = [];
-  L.push(`<a class="link sp ${a.spotify ? "" : "search"}" target="_blank" rel="noopener" href="${esc(a.spotify || "https://open.spotify.com/search/" + q)}" title="${a.spotify ? "Open on Spotify" : "Search on Spotify"}">${ICONS.spotify}Spotify</a>`);
-  L.push(`<a class="link yt ${a.youtube ? "" : "search"}" target="_blank" rel="noopener" href="${esc(a.youtube || "https://www.youtube.com/results?search_query=" + q + "+full+album")}" title="${a.youtube ? "Open on YouTube" : "Search on YouTube"}">${ICONS.youtube}YouTube</a>`);
-  if (a.apple) L.push(`<a class="link am" target="_blank" rel="noopener" href="${esc(a.apple)}"> Music</a>`);
-  if (a.deezer) L.push(`<a class="link dz" target="_blank" rel="noopener" href="${esc(a.deezer)}">Deezer</a>`);
-  return `<div class="links">${L.join("")}</div>`;
+  const opts = [
+    ["sp", ICONS.spotify, "Spotify", a.spotify, "https://open.spotify.com/search/" + q],
+    ["yt", ICONS.youtube, "YouTube", a.youtube, "https://www.youtube.com/results?search_query=" + q + "+full+album"],
+    ["am", "", "Apple Music", a.apple, "https://music.apple.com/search?term=" + q],
+    ["dz", "", "Deezer", a.deezer, "https://www.deezer.com/search/" + q + "/album"]
+  ].filter(([, , , url], i) => url || i < 2);
+  return `<div class="links-menu" role="menu" aria-label="Listen to ${esc(a.album)}">${opts.map(([cls, ic, name, url, search]) =>
+    `<a role="menuitem" class="link ${cls}" target="_blank" rel="noopener" href="${esc(url || search)}">${ic}<span>${name}</span><small>${url ? "open" : "search"}</small></a>`).join("")}</div>`;
 }
 
 // ═══════════════ header + tabs ═══════════════
@@ -64,16 +63,16 @@ function renderHeader() {
   renderFab();
 }
 
-/** The one big button: bottom-right, where the thumb already is. */
+/** The one big button, in a bar of its own at the bottom where the thumb already is. */
 function renderFab() {
-  let f = $("#fab");
-  if (!canWrite()) { f?.remove(); return; }
-  if (!f) {
-    f = document.createElement("button");
-    f.id = "fab"; f.className = "fab"; f.setAttribute("aria-label", "Add album"); f.title = "Add album";
-    f.innerHTML = `<span aria-hidden="true">＋</span>`;
-    f.addEventListener("click", () => openEditor());
-    document.body.appendChild(f);
+  let d = $("#dock");
+  if (!canWrite() || state.tab === "listen") { d?.remove(); return; }
+  if (!d) {
+    d = document.createElement("div");
+    d.id = "dock"; d.className = "dock";
+    d.innerHTML = `<button class="dock-btn" id="fab" aria-label="Add album"><span class="dock-plus" aria-hidden="true">＋</span>Add album</button>`;
+    $("#fab", d).addEventListener("click", () => openEditor());
+    document.body.appendChild(d);
   }
 }
 
@@ -109,18 +108,16 @@ function renderTabs() {
   $("#who-btn", t).addEventListener("click", e => { e.stopPropagation(); state.whoOpen = !state.whoOpen; renderTabs(); if (state.whoOpen) $(".who-item.active", t)?.focus(); });
   $$(".who-item", t).forEach(b => b.addEventListener("click", e => {
     e.stopPropagation();
-    state.tab = b.dataset.tab; state.pickerFor = null; state.whoOpen = false;
-    renderTabs(); renderMain(); window.scrollTo({ top: 0, behavior: "smooth" });
+    state.tab = b.dataset.tab; state.pickerFor = null; state.whoOpen = false; state.scrollToEnd = true;
+    renderTabs(); renderMain(); renderFab();
   }));
 }
 
 // ═══════════════ main list ═══════════════
+/** Same order as the Sheet: January at the top, newest at the bottom (the view starts scrolled to the end). */
 function sortAlbums(list) {
-  return list.sort((a, b) =>
-    (b.month || 0) - (a.month || 0) ||
-    isoDate(b.listenedDate).localeCompare(isoDate(a.listenedDate)) ||
-    (b.created || 0) - (a.created || 0) ||
-    (b.row || 0) - (a.row || 0));
+  const m = x => x.month || 13;
+  return list.sort((a, b) => m(a) - m(b) || (a.row || 0) - (b.row || 0) || (a.created || 0) - (b.created || 0));
 }
 
 function renderMain() {
@@ -177,6 +174,10 @@ function renderList() {
     if (!monthPref(month).hidden) html += cardHtml(a, i++);
   }
   list.innerHTML = html + `</div></section>`;
+  if (state.scrollToEnd) {
+    state.scrollToEnd = false;
+    requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+  }
   albums.forEach(a => state.rendered.add(a.key));
 }
 
@@ -197,7 +198,6 @@ function cardHtml(a, i) {
   return `
   <article class="card ${fresh ? "enter fade-in" : ""} ${a.pending ? "pending" : ""} ${expanded ? "open" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--tint:${monthTint(a.month)};--i:${Math.min(i, 12)}">
     <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "collapse" : "expand"}">
-      ${coverHtml(a, "photo")}
       <div class="card-main">
         <div class="artist">${esc(a.artist)}</div>
         <div class="album-name">${esc(a.album)}</div>
@@ -225,7 +225,6 @@ function cardHtml(a, i) {
       ${recHtml(a.recommend)}
       ${a.comments ? `<div class="note">📝 ${esc(a.comments)}</div>` : ""}
     </div>` : ""}
-    ${linksHtml(a)}
     <div class="owner-line">${avatar(a.owner, 18)} ${esc(a.owner)}
       ${also.length ? `<span class="also" title="Also in ${esc(also.join(", "))}'s table">also heard by <span class="av-stack">${also.map(o => avatar(o, 18)).join("")}</span></span>` : ""}
     </div>
@@ -235,12 +234,14 @@ function cardHtml(a, i) {
         ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}">${e}</button>`).join("")}</span>`
         : `<button class="rx" data-act="picker" title="React" aria-label="Add reaction">☺︎<small>+</small></button>`) : ""}
       <button class="rx" data-act="thread" title="Comments" aria-label="Comments (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
+      <button class="rx ${state.linksFor === a.key ? "mine" : ""}" data-act="links" aria-expanded="${state.linksFor === a.key}" aria-label="Listen on…">🎧<small>Listen</small></button>
       <span class="grow"></span>
       <span class="actions">
         ${canWrite() && !mine ? `<button class="mini" data-act="listen-me" title="Add to my listen list">＋ 🎧</button>` : ""}
         ${mine ? `<button class="mini" data-act="edit">✏️ Edit</button><button class="mini danger" data-act="delete" title="Delete" aria-label="Delete album">🗑️</button>` : ""}
       </span>
     </div>
+    ${state.linksFor === a.key ? linksMenuHtml(a) : ""}
     ${open ? threadHtml(a, cmts) : ""}
     </div>` : ""}
   </article>`;
@@ -282,6 +283,8 @@ document.addEventListener("click", e => {
     state.pickerFor = null;
     queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reaction");
     requestAnimationFrame(() => $(`.card[data-key="${CSS.escape(a.key)}"] .rx[data-emoji="${btn.dataset.emoji}"]`)?.classList.add("pop"));
+  } else if (act === "links" && a) {
+    state.linksFor = state.linksFor === a.key ? null : a.key; renderList();
   } else if (act === "picker" && a) {
     state.pickerFor = a.key; renderList();
   } else if (act === "thread" && a) {

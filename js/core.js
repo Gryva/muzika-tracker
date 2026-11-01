@@ -56,6 +56,28 @@ const STYLES = {
     fontHref: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
     monthColors: ["#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8"],
     bgSet: "off", swatch: ["#FFFFFF", "#F5F5F5", "#000000", "#DC2626"], themeColor: "#FFFFFF"
+  },
+  clear: {
+    name: "Clear", desc: "Big text, high contrast, easy to tap", accent: "#1E3A8A",
+    font: "'Atkinson Hyperlegible', system-ui, sans-serif", tint: 0,
+    fontHref: "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap",
+    // every month colour passes 4.5:1 on white, so it can carry text; names are always written out too
+    monthColors: ["#1E3A8A", "#0F766E", "#166534", "#4D7C0F", "#A16207", "#B45309", "#C2410C", "#B91C1C", "#9D174D", "#6D28D9", "#374151", "#1D4ED8"],
+    bgSet: "off", swatch: ["#FFFFFF", "#1E3A8A", "#166534", "#F59E0B"], themeColor: "#FFFFFF"
+  },
+  clay: {
+    name: "Clay", desc: "Soft, chunky, toy-like pastels", accent: "#F4A6B8",
+    font: "'Nunito', system-ui, sans-serif", tint: 100,
+    fontHref: "https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap",
+    monthColors: ["#ADD8E6", "#FFD1DC", "#98FF98", "#E6E6FA", "#B5EAD7", "#FFE5B4", "#FDBCB4", "#C7CEEA", "#FFDAC1", "#E2F0CB", "#F8C8DC", "#CDE7F0"],
+    bgSet: "shapes", swatch: ["#FDBCB4", "#ADD8E6", "#98FF98", "#E6E6FA"], themeColor: "#F0E6FA"
+  },
+  mag: {
+    name: "Magazine", desc: "Serif headlines, columns, pull quotes", accent: "#DC2626", display: "'Playfair Display', Georgia, serif",
+    font: "system-ui, 'Helvetica Neue', Arial, sans-serif", tint: 0,
+    fontHref: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap",
+    monthColors: ["#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000"],
+    bgSet: "off", swatch: ["#FFFFFF", "#000000", "#DC2626", "#6B7280"], themeColor: "#FFFFFF"
   }
 };
 /** Web fonts are only fetched when someone actually picks a style that needs one. */

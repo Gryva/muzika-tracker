@@ -2617,3 +2617,38 @@ button.logo:active { transform: scale(.96); }
 @media (max-width: 480px) { .editor .row3 { grid-template-columns: .9fr 1.2fr 1fr; } }
 .editor .row3 .fi { min-width: 0; }
 .editor .fg-date { margin-top: 2px; }
+
+/* v34: compact album form – everything down to "Preporučaš?" fits on a phone screen */
+.editor .sheet-body { padding-top: 12px; padding-bottom: 12px; }
+.editor .fg { margin-bottom: 9px; }
+.editor .fl { margin-bottom: 4px; }
+.editor .fi { padding-top: 9px; padding-bottom: 9px; }
+.editor .fi-big, .editor.page .fi-big { font-size: 17px; padding: 10px 13px; }
+.editor .ft { min-height: 46px; }
+.editor .marks { margin: 0 0 10px; gap: 6px; flex-wrap: nowrap; }
+.editor .mark-chip { padding: 6px 10px; font-size: 12px; gap: 6px; white-space: nowrap; min-width: 0; }
+.editor .mark-chip i { width: 10px; height: 10px; }
+.editor .rate { flex-wrap: nowrap; gap: 10px; }
+.editor .rate-track { padding: 0; gap: 3px; }
+.editor .rate-track b { font-size: 30px; }
+.editor .rate-side { gap: 5px; }
+.editor .rate-val { font-size: 19px; min-width: 32px; }
+.editor .rate-plus { width: 30px; height: 30px; font-size: 15px; }
+.editor .rate-raw { width: 56px !important; padding: 6px 7px !important; }
+.editor .choice button { padding-top: 8px; padding-bottom: 8px; }
+.editor .row3 { margin-bottom: 0; }
+.editor .fg-date .hint[hidden] { display: none; }
+.editor.page .form-actions { padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.editor.page .form-actions .btn { height: 48px; }
+@media (max-width: 380px) { .editor .mark-chip { font-size: 11px; padding: 6px 8px; } .editor .rate-track b { font-size: 27px; } }
+.editor .ft { height: 46px; min-height: 46px; }
+.editor .ft:focus { height: 84px; transition: height .2s ease; }
+/* Jasno keeps big, readable text – just less empty space in the album form */
+[data-style="clear"] .editor .fi, [data-style="clear"] .editor .ft { min-height: 46px; padding: 9px 12px; font-size: 17px; }
+[data-style="clear"] .editor .ft { height: 46px; }
+[data-style="clear"] .editor .fl { font-size: 13px; margin-bottom: 3px; }
+[data-style="clear"] .editor .mark-chip { min-height: 40px; font-size: 13px; padding: 6px 9px; }
+[data-style="clear"] .editor .choice button { min-height: 44px; font-size: 15px; }
+[data-style="clear"] .editor .rate-track b { font-size: 32px; }
+[data-style="clear"] .editor .rate-plus { width: 40px; height: 40px; }
+[data-style="clear"] .editor .fg { margin-bottom: 8px; }

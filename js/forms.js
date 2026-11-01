@@ -269,7 +269,7 @@ function openEditor(a = null, prefill = {}) {
         <div class="fg"><label class="fl">Ocjena</label><div id="f-rating"></div></div>
       </div>
       <div class="step" style="--s:3">
-        <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="2" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
+        <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="1" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
       </div>
       <div class="step" style="--s:4">
         <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom ili +, a „album!” znači cijeli album</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
@@ -329,7 +329,8 @@ function openEditor(a = null, prefill = {}) {
   const paintDate = () => {
     const t = monthTarget();
     dateHint.className = "hint" + (t?.bad ? " warn" : "");
-    dateHint.textContent = !t ? "" : t.bad ? "Upiši datum kao dd.mm.gggg, npr. 7.11.2026" : t.exists ? `→ ide u ${MONTH_NAMES[t.m - 1]} ${t.y}.` : `→ novi mjesec: ${MONTH_NAMES[t.m - 1]} ${t.y}. ✨`;
+    dateHint.textContent = t?.bad ? "Upiši datum kao dd.mm.gggg, npr. 7.11.2026" : "";
+    dateHint.hidden = !t?.bad;
   };
   dateI.addEventListener("input", e => {
     // 07112026 → 07.11.2026 while typing digits only

@@ -64,23 +64,34 @@ function renderHeader() {
   renderFab();
 }
 
-/** The one big button, in a bar of its own at the bottom where the thumb already is. */
+/** Bottom bar where the thumb already is: whose table (small pill) + the one big "Dodaj album" button,
+ *  on a solid strip so the list scrolls away underneath it. */
 function renderFab() {
   let d = $("#dock");
-  if (!canWrite() || state.tab === "listen") { d?.remove(); return; }
+  if (!state.view || !state.me) {
+    if (d) { const tabs = $("#tabs", d); if (tabs) $("#main").before(tabs); d.remove(); }
+    return;
+  }
   if (!d) {
     d = document.createElement("div");
     d.id = "dock"; d.className = "dock";
-    d.innerHTML = `<button class="dock-btn" id="fab" aria-label="Dodaj album"><span class="dock-plus" aria-hidden="true">＋</span>Dodaj album</button>`;
+    d.innerHTML = `<div class="dock-row"><button class="dock-btn" id="fab" aria-label="Dodaj album"><span class="dock-plus" aria-hidden="true">＋</span>Dodaj album</button></div>`;
     $("#fab", d).addEventListener("click", () => openEditor());
     document.body.appendChild(d);
+    new ResizeObserver(() => document.documentElement.style.setProperty("--dock-h", d.offsetHeight + "px")).observe(d);
   }
+  const row = $(".dock-row", d), tabs = $("#tabs");
+  if (tabs && tabs.parentElement !== row) row.prepend(tabs);
+  const fab = $("#fab", d);
+  fab.hidden = !canWrite() || state.tab === "listen";
+  d.classList.toggle("solo", fab.hidden);
 }
 
 /** Whose table you're looking at: one pill that folds open into everyone + the listen list. */
 function renderTabs() {
   const t = $("#tabs");
   const v = state.view;
+  if (!t) return;
   if (!v) { t.innerHTML = ""; return; }
   const order = users().map(u => u.name);
   if (canWrite()) order.sort((a, b) => (b === state.me) - (a === state.me));
@@ -92,11 +103,11 @@ function renderTabs() {
   const cur = state.tab;
   const mineAlbums = cur === "listen" ? [] : v.albums.filter(a => a.owner === cur);
   const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}`;
-  const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span>Za slušanje`
-    : `${avatar(cur, 26)}${isMe(cur) ? "Moja tablica" : esc(cur)}`;
+  const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span><span class="who-name">Slušanje</span>`
+    : `${avatar(cur, 30)}<span class="who-name">${isMe(cur) ? "Ja" : esc(cur)}</span>`;
   t.innerHTML = `
     <div class="who">
-      <button class="who-btn" id="who-btn" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
+      <button class="who-btn" id="who-btn" aria-label="${cur === "listen" ? "Za slušanje" : isMe(cur) ? "Moja tablica" : "Tablica: " + esc(cur)} – promijeni" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
         ${label}${anyNew ? `<i class="dot" aria-label="Nova aktivnost"></i>` : ""}<span class="chev" aria-hidden="true"></span>
       </button>
 
@@ -109,8 +120,9 @@ function renderTabs() {
   $$(".who-item", t).forEach(b => b.addEventListener("click", e => {
     e.stopPropagation();
     state.tab = b.dataset.tab; state.pickerFor = null; state.whoOpen = false; state.scrollToEnd = true;
-    renderTabs(); renderMain(); renderFab();
+    renderTabs(); renderMain();
   }));
+  renderFab();
 }
 
 // ═══════════════ main list ═══════════════
@@ -383,7 +395,7 @@ const EASE = "cubic-bezier(.2, .8, .2, 1)";
     document.documentElement.style.setProperty("--chrome-h", chromeHeight() + "px");
   };
   const ro = new ResizeObserver(set);
-  ["#header", "#tabs"].forEach(s => $(s) && ro.observe($(s)));
+  ["#header"].forEach(s => $(s) && ro.observe($(s)));
   set();
 })();
 
@@ -457,7 +469,7 @@ function scrollToCurrentMonth() {
   const top = target.getBoundingClientRect().top + window.scrollY - chromeHeight() - 8;
   window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
 }
-function chromeHeight() { return ($("#header")?.offsetHeight || 0) + ($("#tabs")?.offsetHeight || 0); }
+function chromeHeight() { return $("#header")?.offsetHeight || 0; }
 document.addEventListener("keydown", e => {
   if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.act === "toggle-card") {
     e.preventDefault();

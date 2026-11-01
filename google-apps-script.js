@@ -132,6 +132,7 @@ function setup() {
   getUsers();
   Object.keys(TABS).forEach(getTab);
   getCoverFolder();
+  fixShiftedDates();
   UrlFetchApp.fetch("https://itunes.apple.com/search?term=test&entity=album&limit=1", { muteHttpExceptions: true });
   clearCache();
   return "Setup OK";
@@ -276,9 +277,39 @@ function cellToString(v, field, tz) {
     // Sheets auto-converts ratings like "4.5" into the date 4 May -> turn it back into "4.5"
     if (field === "rating") return Utilities.formatDate(v, tz, "d.M");
     if (field === "duration") return Utilities.formatDate(v, tz, "H:mm");
-    return Utilities.formatDate(v, tz, "yyyy-MM-dd");
+    return dayOf(v, tz);
   }
   return unescapeText(String(v).trim());
+}
+
+/** The calendar day of a date cell. A date saved as midnight in a different time zone shows up
+ *  here as e.g. 18:00 the evening before – so anything after noon counts as the next day. */
+function dayOf(v, tz) {
+  var h = +Utilities.formatDate(v, tz, "H");
+  var t = h > 12 ? new Date(v.getTime() + (24 - h) * 3600000) : v;
+  return Utilities.formatDate(t, tz, "yyyy-MM-dd");
+}
+
+/** One-off repair (also runs from setup): rewrites shifted date cells at noon so the Sheet shows the right day too. */
+function fixShiftedDates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone(), fixed = 0;
+  getUsers().forEach(function (u) {
+    var sheet = ss.getSheetByName(u.sheet);
+    if (!sheet || sheet.getLastRow() === 0) return;
+    var data = sheet.getDataRange().getValues(), info = detectHeaders(data);
+    if (!info || info.cols.listenedDate === undefined) return;
+    var c = info.cols.listenedDate;
+    for (var r = info.headerRow + 1; r < data.length; r++) {
+      var v = data[r][c];
+      if (Object.prototype.toString.call(v) !== "[object Date]") continue;
+      var h = +Utilities.formatDate(v, tz, "H");
+      if (h === 0 || h === 12) continue;
+      sheet.getRange(r + 1, c + 1).setValue(Utilities.parseDate(dayOf(v, tz) + " 12:00", tz, "yyyy-MM-dd HH:mm"));
+      fixed++;
+    }
+  });
+  clearCache();
+  return fixed;
 }
 
 /** Skip empty rows and decorative month dividers like "SIJEČANJ ♬". */
@@ -577,8 +608,9 @@ function writeFields(sheet, row, cols, p) {
     var v = String(p[field] == null ? "" : p[field]).trim();
 
     if (field === "listenedDate" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-      var d = v.split("-");
-      cell.setNumberFormat("d.m.yyyy").setValue(new Date(+d[0], +d[1] - 1, +d[2]));
+      // noon in the spreadsheet's own time zone: the day can't slip, whatever zone the script runs in
+      var sheetTz = sheet.getParent().getSpreadsheetTimeZone();
+      cell.setNumberFormat("d.m.yyyy").setValue(Utilities.parseDate(v + " 12:00", sheetTz, "yyyy-MM-dd HH:mm"));
     } else if (field === "rating" || field === "year" || field === "duration") {
       // plain text so Sheets never turns "4.5" into a date again
       cell.setNumberFormat("@").setValue(safeText(v));

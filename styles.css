@@ -2611,3 +2611,9 @@ button.logo:active { transform: scale(.96); }
 [data-style="swiss"] .rec-wow, [data-style="mag"] .rec-wow { background: #DC2626; color: #FFF; }
 .fg-dur .fi { max-width: 220px; }
 #f-rec button[data-v="DA"].on { border-color: #F97316; background: color-mix(in srgb, #F97316 30%, var(--bg)); color: var(--text); box-shadow: 0 0 0 1px #F97316, 0 0 18px rgba(249, 115, 22, .35); }
+
+/* v33: album form without the Detalji section – year · genre · length on one row */
+.editor .row3 { grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; }
+@media (max-width: 480px) { .editor .row3 { grid-template-columns: .9fr 1.2fr 1fr; } }
+.editor .row3 .fi { min-width: 0; }
+.editor .fg-date { margin-top: 2px; }

@@ -121,7 +121,7 @@ function onEdit(e) { clearCache(); }
 function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu("🎵 Muzika")
-      .addItem("Popuni omote, trajanje i žanr", "menuFetchCovers")
+      .addItem("Popuni omote albuma", "menuFetchCovers")
       .addItem("Set up / repair app tabs", "setup")
       .addToUi();
   } catch (e) {}
@@ -456,12 +456,8 @@ function addAlbum(p, pre) {
     } else { last = r; if (cur) cur.last = r; }
   }
 
+  // year / genre / duration are only what the person typed – the lookup is used just for the cover + links
   var lookup = pre && pre.lookup;
-  if (lookup) {
-    if (!p.year && lookup.year) p.year = lookup.year;
-    if (!p.genre && lookup.genre) p.genre = lookup.genre;
-    if (!p.duration && lookup.durationSec) p.duration = fmtDuration(lookup.durationSec, durationSamples(data, cols, tz));
-  }
 
   var newMonth = /^\d{4}-\d{2}-\d{2}$/.test(p.listenedDate || "") ? +p.listenedDate.substr(5, 2)
                  : +Utilities.formatDate(new Date(), tz, "M");
@@ -657,17 +653,6 @@ function autoCoversPrepare(p) {
     var results = lookupMany(batch);
     addStreamingLinks(results, ODESLI_BATCH);
     return { batch: batch, results: results, remaining: missing.length - batch.length };
-  }
-  // covers done -> fill empty year / genre / duration cells of older entries (once per album)
-  var needDetails = readAllAlbums(getUsers()).filter(function (a) {
-    var m = metaMap[a.key];
-    return (blankish(a.year) || blankish(a.genre) || blankish(a.duration)) && !(m && m.detailsUp);
-  });
-  if (needDetails.length) {
-    var db = needDetails.slice(0, Math.min(limit, DETAILS_BATCH));
-    var dr = lookupMany(db);
-    detailsMany(dr);
-    return { batch: db, results: dr, details: true, remaining: needDetails.length - db.length };
   }
   // all done -> backfill Spotify / YouTube links for older entries
   var albumKeys = {};

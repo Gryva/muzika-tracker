@@ -207,30 +207,6 @@ function ratingWidget(container, initial, onChange) {
   paint();
 }
 
-// ═══════════════ duration in the owner's own style ═══════════════
-/** Writes seconds the way this person already writes durations in their tab: "36min", "50 min", "1h 16 min", "41 min 22 sek". */
-function fmtDurationLike(sec, owner) {
-  sec = Math.round(Number(sec) || 0);
-  if (!sec) return "";
-  const mine = (state.view?.albums || []).filter(a => a.owner === owner && a.duration).map(a => String(a.duration).trim());
-  const sample = mine.slice(-30);
-  const has = re => sample.some(d => re.test(d));
-  const gap = sample.length && !has(/\d\s+min/i) && has(/\d+min/i) ? "" : " ";
-  const useSec = has(/sek|sec|\d+:\d{2}/i);
-  const useHours = has(/\d\s*h\b/i);
-  const colon = sample.length && sample.filter(d => /^\d+:\d{2}(:\d{2})?$/.test(d)).length > sample.length / 2;
-  if (colon) {
-    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
-    return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
-  }
-  let m = useSec ? Math.floor(sec / 60) : Math.round(sec / 60);
-  const s = sec % 60;
-  let out = "";
-  if (useHours && m >= 60) { out = `${Math.floor(m / 60)}h `; m %= 60; }
-  out += `${m}${gap}min`;
-  if (useSec && s) out += ` ${s}${gap}sek`;
-  return out;
-}
 
 // ═══════════════ full-screen pages (album form, settings) ═══════════════
 /** Turns an overlay into a full-screen page. The phone's Back button closes it too.
@@ -252,12 +228,12 @@ function asPage(ov) {
 
 // ═══════════════ add / edit album ═══════════════
 /** Calm, two-step form: the essentials first, everything else folded under "More details".
- *  Year / genre / duration / Spotify + YouTube links are found automatically in the background. */
+ *  Every field is typed by the person – whatever they leave empty stays empty. */
 function openEditor(a = null, prefill = {}) {
   if (!canWrite()) return;
   const editing = !!a;
   const src = a || prefill;
-  const f = { rating: a?.rating || "", recommend: a?.recommend || "", lookup: null };
+  const f = { rating: a?.rating || "", recommend: a?.recommend || "" };
   const ov = document.createElement("div");
   ov.className = "overlay editor";
   // bad → middle → good → really good ("DA" in capitals, like the group writes it)
@@ -278,33 +254,29 @@ function openEditor(a = null, prefill = {}) {
         </div>
       </div>
       <div class="step" style="--s:1">
-        <div class="fg"><label class="fl">Ocjena</label><div id="f-rating"></div></div>
+        <div class="row3">
+          <div class="fg"><label class="fl" for="f-year">Godina</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="1977" inputmode="numeric"></div>
+          <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="rock"></div>
+          <div class="fg"><label class="fl" for="f-duration">Trajanje</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="45 min"></div>
+        </div>
+        <div class="fg fg-date"><label class="fl" for="f-date">Datum slušanja</label>
+          <div class="date-field"><input class="fi" id="f-date" inputmode="numeric" autocomplete="off" placeholder="dd.mm.gggg" maxlength="10" value="${esc(fmtDMY(editing ? isoDate(a.listenedDate) : todayIso()))}">
+            <button type="button" class="date-btn" id="f-date-btn" aria-label="Odaberi datum u kalendaru">📅</button>
+            <input type="date" class="date-native" id="f-date-native" tabindex="-1" aria-hidden="true" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
+          <div class="hint" id="f-date-hint" aria-live="polite"></div></div>
       </div>
       <div class="step" style="--s:2">
-        <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="2" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
+        <div class="fg"><label class="fl">Ocjena</label><div id="f-rating"></div></div>
       </div>
       <div class="step" style="--s:3">
-        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom ili +, a „album!” znači cijeli album</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep">
-          <div class="track-chips hide" id="f-track-chips" aria-label="Pjesme s albuma – dodirni za dodavanje"></div></div>
+        <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="2" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
       </div>
       <div class="step" style="--s:4">
-        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${recLabel(o)}</button>`).join("")}</div></div>
+        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom ili +, a „album!” znači cijeli album</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
       </div>
       <div class="step" style="--s:5">
-        <div class="fg fg-dur"><label class="fl" for="f-duration">Trajanje <small>– traži se samo, možeš i upisati</small></label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="npr. 45 min"></div>
-        <div class="hint found" id="f-found" aria-live="polite"></div>
+        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${recLabel(o)}</button>`).join("")}</div></div>
       </div>
-      <details class="group more step" style="--s:6"><summary>Detalji <small class="auto-sum" id="f-auto-sum">popunjavaju se sami</small></summary>
-        <div class="row2">
-          <div class="fg fg-date"><label class="fl" for="f-date">Datum slušanja</label>
-            <div class="date-field"><input class="fi" id="f-date" inputmode="numeric" autocomplete="off" placeholder="dd.mm.gggg" maxlength="10" value="${esc(fmtDMY(editing ? isoDate(a.listenedDate) : todayIso()))}">
-              <button type="button" class="date-btn" id="f-date-btn" aria-label="Odaberi datum u kalendaru">📅</button>
-              <input type="date" class="date-native" id="f-date-native" tabindex="-1" aria-hidden="true" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
-            <div class="hint" id="f-date-hint" aria-live="polite"></div></div>
-          <div class="fg"><label class="fl" for="f-year">Godina</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="automatski" inputmode="numeric"></div>
-          <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="automatski"></div>
-        </div>
-      </details>
     </div>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" data-close>Odustani</button>
@@ -321,7 +293,7 @@ function openEditor(a = null, prefill = {}) {
     $$("#f-rec button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === f.recommend));
   }));
 
-  const artistI = $("#f-artist", ov), albumI = $("#f-album", ov), found = $("#f-found", ov);
+  const artistI = $("#f-artist", ov), albumI = $("#f-album", ov);
 
   // "others listened to this too" + duplicate warning
   // the group's colour code: 🟣 first time hearing this artist, 🔵 relistening an album
@@ -344,57 +316,6 @@ function openEditor(a = null, prefill = {}) {
     }
   };
 
-  // quietly fill year / genre / duration (only empty or still-automatic fields) and remember the links
-  let lookupSeq = 0;
-  const auto = {};
-  const fillAuto = (id, value) => {
-    const el = $(id, ov);
-    if (value && (!el.value || el.value === auto[id])) { el.value = auto[id] = value; return true; }
-    return false;
-  };
-  const lookup = async () => {
-    const artist = artistI.value.trim(), album = albumI.value.trim();
-    if (!artist || !album) { found.textContent = ""; return; }
-    const seq = ++lookupSeq;
-    found.textContent = "Tražim podatke…"; found.className = "hint found";
-    try {
-      const r = (await apiPost({ action: "lookup", artist, album })).result;
-      if (seq !== lookupSeq) return;
-      f.lookup = r;
-      const got = [];
-      if (fillAuto("#f-year", r?.year)) got.push("godinu");
-      if (fillAuto("#f-genre", r?.genre)) got.push("žanr");
-      if (fillAuto("#f-duration", fmtDurationLike(r?.durationSec, a?.owner || state.me))) got.push("trajanje");
-      if (r?.spotify || r?.youtube || r?.apple || r?.deezer) got.push("linkove za slušanje");
-      found.textContent = got.length ? `✓ Pronađeno: ${got.join(", ")}` : r ? "✓ Pronađeno" : "";
-      found.className = "hint found ok";
-      paintTracks(r?.tracks || []);
-      paintSum();
-    } catch (e) {
-      if (seq !== lookupSeq) return;
-      found.className = "hint found";
-      found.textContent = isNetworkError(e) ? "Izvan mreže – podaci će se popuniti kasnije"
-        : /external_request|UrlFetchApp/i.test(String(e?.message || e)) ? "Automatsko traženje još nije uključeno u Google skripti (pokreni setup)" : "";
-    }
-  };
-  // album's tracklist (when found) as tap-to-add chips under "Istaknute pjesme"
-  const tracksI = $("#f-tracks", ov), chips = $("#f-track-chips", ov);
-  const picked = () => tracksI.value.split(/\s*[,;+]\s*/).map(x => x.trim()).filter(Boolean);
-  const paintTracks = list => {
-    chips.classList.toggle("hide", !list.length);
-    if (!list.length) return;
-    const have = new Set(picked().map(norm));
-    chips.innerHTML = list.slice(0, 30).map(t => `<button type="button" class="${have.has(norm(t)) ? "on" : ""}" data-t="${esc(t)}">${esc(t)}</button>`).join("");
-    $$("button", chips).forEach(b => b.addEventListener("click", () => {
-      const t = b.dataset.t, cur = picked();
-      const i = cur.findIndex(x => norm(x) === norm(t));
-      i >= 0 ? cur.splice(i, 1) : cur.push(t);
-      tracksI.value = cur.join(", ");
-      b.classList.toggle("on", i < 0);
-    }));
-  };
-  tracksI.addEventListener("input", () => { const have = new Set(picked().map(norm)); $$("button", chips).forEach(b => b.classList.toggle("on", have.has(norm(b.dataset.t)))); });
-  // one-line summary of the automatic details, so the section can stay closed
   // date: typed day.month.year (European), or picked from the calendar; shows which month it lands in
   const dateI = $("#f-date", ov), dateN = $("#f-date-native", ov), dateHint = $("#f-date-hint", ov);
   const owner = a?.owner || state.me;
@@ -415,27 +336,16 @@ function openEditor(a = null, prefill = {}) {
     const v = dateI.value;
     if (/^\d{8}$/.test(v)) dateI.value = `${v.slice(0, 2)}.${v.slice(2, 4)}.${v.slice(4)}`;
     const iso = parseDMY(dateI.value); if (iso) dateN.value = iso;
-    paintDate(); paintSum();
+    paintDate();
   });
   dateI.addEventListener("blur", () => { const iso = parseDMY(dateI.value); if (iso) dateI.value = fmtDMY(iso); });
   $("#f-date-btn", ov).addEventListener("click", () => { try { dateN.showPicker(); } catch (e) { dateN.focus(); dateN.click(); } });
-  dateN.addEventListener("change", () => { if (dateN.value) { dateI.value = fmtDMY(dateN.value); paintDate(); paintSum(); } });
+  dateN.addEventListener("change", () => { if (dateN.value) { dateI.value = fmtDMY(dateN.value); paintDate(); } });
   paintDate();
 
-  const paintSum = () => {
-    const t = monthTarget(), d = parseDMY(dateI.value);
-    const parts = [t && !t.bad ? `${MONTH_NAMES[t.m - 1]}${t.exists ? "" : " (novi)"}` : "", d && fmtDMY(d), $("#f-year", ov).value, $("#f-genre", ov).value].filter(Boolean);
-    $("#f-auto-sum", ov).textContent = parts.length ? parts.join(" · ") : "popunjavaju se sami";
-  };
-  ["#f-year", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
-  paintSum();
-
-  let lt;
-  const onNameChange = () => { checkAlso(); clearTimeout(lt); lt = setTimeout(lookup, 700); };
-  artistI.addEventListener("input", onNameChange);
-  albumI.addEventListener("input", onNameChange);
-  if (prefill.artist && !editing) { checkAlso(); lookup(); }
-  if (editing) checkAlso();
+  artistI.addEventListener("input", checkAlso);
+  albumI.addEventListener("input", checkAlso);
+  if (prefill.artist || editing) checkAlso();
 
   ov.querySelector("form").addEventListener("submit", e => {
     e.preventDefault();
@@ -447,9 +357,7 @@ function openEditor(a = null, prefill = {}) {
       mark: f.mark || ""
     };
     if (!data.artist || !data.album) return toast("Izvođač i album su obavezni");
-    if (dateI.value.trim() && !data.listenedDate) { $(".group.more", ov).open = true; dateI.focus(); return toast("Datum upiši kao dd.mm.gggg"); }
-    const L = f.lookup || {};
-    ["spotify", "youtube", "apple", "deezer"].forEach(k => { if (L[k] && !(editing && a[k])) data[k] = L[k]; });
+    if (dateI.value.trim() && !data.listenedDate) { dateI.focus(); return toast("Datum upiši kao dd.mm.gggg"); }
     if (editing) {
       if (String(a.id).startsWith("tmp_")) {
         const op = state.outbox.find(o => !o.done && o.payload.action === "add" && "tmp_" + o.payload.clientId === a.id);

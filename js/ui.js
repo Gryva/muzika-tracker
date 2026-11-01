@@ -165,6 +165,7 @@ function renderList() {
       const mp = monthPref(month), name = month ? MONTH_NAMES[month - 1] : "Bez mjeseca";
       html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
         <header class="month-head">
+          <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
           <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Show" : "Hide"} ${name}"><h2>${mp.icon ? `<span class="month-icon">${esc(mp.icon)}</span>` : ""}${name}</h2></button>
           <span class="month-count">${counts[month]} ${counts[month] === 1 ? "album" : "albuma"}</span>
           <button class="month-gear" data-act="month-style" aria-label="Style ${name}" title="Style ${name}">⚙︎</button>
@@ -199,7 +200,7 @@ function cardHtml(a, i) {
         <div class="album-name">${esc(a.album)}</div>
         <div class="meta">
           ${ratingHtml(a.rating)}
-          ${isNew(a) ? `<span class="new-pill">NEW</span>` : ""}
+          ${isNew(a) ? `<span class="new-pill tag">NEW</span>` : ""}
           ${a.pending ? `<span class="pending-pill" title="Saved on this device, waiting to sync">⏳ syncing</span>` : ""}
         </div>
       </div>

@@ -42,8 +42,29 @@ const STYLES = {
     name: "Retro Film", desc: "Film grain, polaroids, faded colours", accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
     monthColors: ["#7A9CA8", "#B98B9E", "#8FA37E", "#E8B4B8", "#A8B26B", "#D9A441", "#C9734F", "#D4A574", "#8B4513", "#B5562E", "#6B7280", "#4A7B7C"],
     bgSet: "film", swatch: ["#F5E6C8", "#D4A574", "#4A7B7C", "#E8B4B8"], themeColor: "#F5E6C8"
+  },
+  pop: {
+    name: "Neubrutal", desc: "Thick outlines, hard shadows, loud colours", accent: "#FF5252",
+    font: "'Space Grotesk', system-ui, sans-serif", tint: 100,
+    fontHref: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap",
+    monthColors: ["#2196F3", "#FF80AB", "#4CAF50", "#FFEB3B", "#B2FF59", "#FF9800", "#FF5252", "#18FFFF", "#FFD180", "#FF6E40", "#B388FF", "#82B1FF"],
+    bgSet: "shapes", swatch: ["#FFEB3B", "#FF5252", "#2196F3", "#000000"], themeColor: "#FFFBEB"
+  },
+  swiss: {
+    name: "Swiss", desc: "Grid, Helvetica, hairlines, red", accent: "#DC2626",
+    font: "'Helvetica Neue', Helvetica, Inter, Arial, sans-serif", tint: 0,
+    fontHref: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
+    monthColors: ["#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8"],
+    bgSet: "off", swatch: ["#FFFFFF", "#F5F5F5", "#000000", "#DC2626"], themeColor: "#FFFFFF"
   }
 };
+/** Web fonts are only fetched when someone actually picks a style that needs one. */
+function loadStyleFont(st) {
+  if (!st.fontHref || document.querySelector(`link[href="${st.fontHref}"]`)) return;
+  const l = document.createElement("link");
+  l.rel = "stylesheet"; l.href = st.fontHref;
+  document.head.appendChild(l);
+}
 const MONTH_ICONS = ["", "❄", "♥", "✿", "☂", "❀", "☀", "⛱", "✦", "🍂", "☾", "☁", "★", "♪", "📼", "📷"];
 const style = () => STYLES[state.settings.style] || STYLES.default;
 const DEFAULT_SETTINGS = {
@@ -395,6 +416,7 @@ function applyTheme() {
   const s = state.settings, r = document.documentElement.style;
   const st = style();
   document.documentElement.dataset.style = s.style;
+  loadStyleFont(st);
   r.setProperty("--accent", s.accent || st.accent);
   r.setProperty("--font", s.font === "auto" ? st.font : FONTS[s.font] || st.font);
   r.setProperty("--tint", (s.tint ?? st.tint) + "%");

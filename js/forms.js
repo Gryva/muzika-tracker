@@ -425,7 +425,8 @@ function openSettings(section) {
     // a new look starts from its own colours: drop accent + month colour overrides (icons / folded months stay)
     s.accent = null; s.tint = null;
     Object.values(s.months).forEach(mp => { delete mp.color; delete mp.tint; });
-    if (Object.values(STYLES).some(x => x.bgSet === s.bg.set)) s.bg.set = style().bgSet;
+    if (style().bgSet === "off") s.bg.on = false;
+    else if (Object.values(STYLES).some(x => x.bgSet === s.bg.set) || !s.bg.on) { s.bg.set = style().bgSet; s.bg.on = true; }
     $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on"));
     $("#s-accent-custom", ov).value = style().accent;
@@ -485,7 +486,7 @@ function openMonthStyle(m) {
       <div class="fl">Colour</div>
       <div class="swatches" id="m-color">${palette.map(c => `<button class="sw ${c.toLowerCase() === String(cur).toLowerCase() ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join("")}
         <input type="color" class="sw-input" id="m-custom" value="${esc(/^#/.test(cur) ? cur : "#888888")}" aria-label="Custom colour"></div>
-      <div class="fg" style="margin-top:16px"><label class="fl" for="m-tint">Card tint <small id="m-tint-v">${monthTint(m)}</small></label><input type="range" class="range" id="m-tint" min="0" max="60" value="${parseInt(monthTint(m))}"></div>
+      <div class="fg" style="margin-top:16px"><label class="fl" for="m-tint">Card tint <small id="m-tint-v">${monthTint(m)}</small></label><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"></div>
       <div class="fl">Symbol</div>
       <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button class="${(mp().icon || "") === ic ? "on" : ""}" data-v="${esc(ic)}" aria-label="${ic ? "Symbol " + ic : "No symbol"}">${ic || "∅"}</button>`).join("")}</div>
       <div class="fg" style="margin-top:16px"><label class="toggle"><input type="checkbox" id="m-hidden" ${mp().hidden ? "checked" : ""}> Fold this month (hide its albums)</label></div>

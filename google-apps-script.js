@@ -636,6 +636,7 @@ function pickItunes(text, artist, album) {
       apple: String(best.collectionViewUrl || "").replace(/\?uo=\d+$/, ""),
       year: best.releaseDate ? String(best.releaseDate).substr(0, 4) : "",
       genre: best.primaryGenreName || "",
+      itunesId: best.collectionId || "",
       source: "itunes"
     };
   } catch (e) { return null; }
@@ -646,7 +647,7 @@ function pickDeezer(text, artist, album) {
     var res = JSON.parse(text).data || [];
     var best = bestMatch(res, artist, album, function (x) { return [x.artist && x.artist.name, x.title]; });
     if (!best) return null;
-    return { cover: best.cover_xl || best.cover_big || "", deezer: best.link || "", source: "deezer" };
+    return { cover: best.cover_xl || best.cover_big || "", deezer: best.link || "", deezerId: best.id || "", source: "deezer" };
   } catch (e) { return null; }
 }
 
@@ -693,6 +694,7 @@ function lookupAlbum(artist, album, spotify) {
   artist = String(artist || "").trim(); album = String(album || "").trim();
   var result = null;
   if (artist && album) result = lookupMany([{ artist: artist, album: album }])[0];
+  if (result) result.durationSec = albumDuration(result);
   var sp = spotifyCover(spotify);
   if (sp) { result = result || {}; result.cover = sp; result.source = "spotify"; }
   if (result && (result.apple || result.deezer || sp)) {
@@ -702,6 +704,25 @@ function lookupAlbum(artist, album, spotify) {
     if (sp && !result.spotify) result.spotify = spotify;
   }
   return result;
+}
+
+/** Total album length in seconds (sum of the tracks), from whichever catalogue matched. */
+function albumDuration(r) {
+  try {
+    if (r.itunesId) {
+      var res = UrlFetchApp.fetch("https://itunes.apple.com/lookup?entity=song&limit=200&id=" + r.itunesId, { muteHttpExceptions: true });
+      if (res.getResponseCode() === 200) {
+        var ms = 0;
+        (JSON.parse(res.getContentText()).results || []).forEach(function (t) { if (t.wrapperType === "track") ms += Number(t.trackTimeMillis) || 0; });
+        if (ms) return Math.round(ms / 1000);
+      }
+    }
+    if (r.deezerId) {
+      var res2 = UrlFetchApp.fetch("https://api.deezer.com/album/" + r.deezerId, { muteHttpExceptions: true });
+      if (res2.getResponseCode() === 200) return Number(JSON.parse(res2.getContentText()).duration) || 0;
+    }
+  } catch (e) {}
+  return 0;
 }
 
 /**

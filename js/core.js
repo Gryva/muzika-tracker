@@ -111,6 +111,7 @@ const DEFAULT_SETTINGS = {
   monthScale: 1,          // size of month names, 0.7 – 1.5
   tint: null,             // null = the style's tint
   months: {},             // per-month tweaks: { "11": { color, tint, icon, hidden } }
+  yearsFolded: {},        // { "2025": true } – years start open
   bg: { on: true, set: "notes", density: 18, speed: 1, opacity: 1, color: "months" },
   sv: 2, updatedAt: 0
 };
@@ -148,6 +149,28 @@ const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").re
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const isoDate = d => /^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10) : "";
 const todayIso = () => new Date().toLocaleDateString("sv-SE");
+/** "2026-11-07" → "07.11.2026" */
+const fmtDMY = iso => { const d = isoDate(iso); return d ? `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}` : ""; };
+/** "7.11.2026", "07/11/2026", "7-11-26" → "2026-11-07" (or "" if it isn't a real date) */
+function parseDMY(v) {
+  const m = /^\s*(\d{1,2})[.\/\-\s]+(\d{1,2})[.\/\-\s]+(\d{2}|\d{4})\.?\s*$/.exec(String(v || ""));
+  if (!m) return "";
+  const d = +m[1], mo = +m[2], y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return "";
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+/** The year an entry belongs to in the list: the year it was heard, else the owner's usual year. */
+function logYear(a) {
+  const d = isoDate(a.listenedDate);
+  if (d) return d.slice(0, 4);
+  const c = (logYear._c = logYear._c || {});
+  if (!c[a.owner]) {
+    const ys = {}; (state.view?.albums || []).forEach(x => { const xd = isoDate(x.listenedDate); if (x.owner === a.owner && xd) ys[xd.slice(0, 4)] = (ys[xd.slice(0, 4)] || 0) + 1; });
+    c[a.owner] = Object.entries(ys).sort((p, q) => q[1] - p[1])[0]?.[0] || String(new Date().getFullYear());
+  }
+  return c[a.owner];
+}
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn("localStorage full?", e); } };
 
@@ -477,6 +500,7 @@ const D = { byKey: new Map(), byNk: new Map(), comments: new Map(), reactions: n
 function derive() {
   const v = state.view;
   D.byKey = new Map(); D.byNk = new Map(); D.comments = new Map(); D.reactions = new Map();
+  logYear._c = {};
   if (!v) return;
   for (const a of v.albums) {
     D.byKey.set(a.key, a);

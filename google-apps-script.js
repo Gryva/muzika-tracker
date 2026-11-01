@@ -408,18 +408,17 @@ function addAlbum(p, pre) {
   var data = info.data, cols = info.cols;
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
 
-  // last row with anything in the artist/album columns, and the month section we're in
-  var last = info.headerRow, lastSection = 0, usesDividers = false;
+  // map the tab into month sections (divider rows like "LISTOPAD ♬") so the album lands in the right one
+  var last = info.headerRow, usesDividers = false, sections = [], cur = null;
   for (var r = info.headerRow + 1; r < data.length; r++) {
     var a = String(data[r][cols.artist]).trim(), b = String(data[r][cols.album]).trim();
     var rowText = data[r].join(" ");
-    if (a || b || rowText.trim()) {
-      var asAlbum = rowToAlbum(data[r], cols, tz);
-      if (!isAlbumRow(asAlbum)) {
-        var m = monthFromText(rowText);
-        if (m) { lastSection = m; usesDividers = true; last = r; }
-      } else last = r;
-    }
+    if (!(a || b || rowText.trim())) continue;
+    var asAlbum = rowToAlbum(data[r], cols, tz);
+    if (!isAlbumRow(asAlbum)) {
+      var m = monthFromText(rowText);
+      if (m) { usesDividers = true; cur = { month: m, divider: r, last: r }; sections.push(cur); last = r; }
+    } else { last = r; if (cur) cur.last = r; }
   }
 
   var lookup = pre && pre.lookup;
@@ -430,14 +429,29 @@ function addAlbum(p, pre) {
 
   var newMonth = /^\d{4}-\d{2}-\d{2}$/.test(p.listenedDate || "") ? +p.listenedDate.substr(5, 2)
                  : +Utilities.formatDate(new Date(), tz, "M");
-  var targetRow = last + 2; // 1-based row after "last"
-  var needDivider = (usesDividers || last === info.headerRow) && newMonth > lastSection;
-  var rowsNeeded = targetRow + (needDivider ? 1 : 0) - sheet.getMaxRows();
-  if (rowsNeeded > 0) sheet.insertRowsAfter(sheet.getMaxRows(), rowsNeeded);
-
-  if (needDivider) {
-    sheet.getRange(targetRow, cols.artist + 1).setValue(MONTH_LABELS[newMonth - 1]).setFontWeight("bold");
-    targetRow++;
+  var same = sections.filter(function (x) { return x.month === newMonth; })[0];
+  var later = sections.filter(function (x) { return x.month > newMonth; })[0];
+  var targetRow; // 1-based
+  if (same) {
+    // month already exists: new row right under its last album (works for earlier months too)
+    targetRow = same.last + 2;
+    sheet.insertRowsAfter(same.last + 1, 1);
+  } else if (usesDividers && later) {
+    // a forgotten earlier month that has no section yet: new divider + row before the next month
+    var at = later.divider + 1;
+    sheet.insertRowsBefore(at, 2);
+    sheet.getRange(at, cols.artist + 1).setValue(MONTH_LABELS[newMonth - 1]).setFontWeight("bold");
+    targetRow = at + 1;
+  } else {
+    // newest month (or a tab without dividers): append after the last row
+    targetRow = last + 2;
+    var needDivider = usesDividers || last === info.headerRow;
+    var rowsNeeded = targetRow + (needDivider ? 1 : 0) - sheet.getMaxRows();
+    if (rowsNeeded > 0) sheet.insertRowsAfter(sheet.getMaxRows(), rowsNeeded);
+    if (needDivider) {
+      sheet.getRange(targetRow, cols.artist + 1).setValue(MONTH_LABELS[newMonth - 1]).setFontWeight("bold");
+      targetRow++;
+    }
   }
   writeFields(sheet, targetRow, cols, p);
 

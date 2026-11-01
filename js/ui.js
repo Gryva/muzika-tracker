@@ -116,7 +116,7 @@ function renderTabs() {
 /** Same order as the Sheet: January at the top, newest at the bottom (the view starts scrolled to the end). */
 function sortAlbums(list) {
   const m = x => x.month || 13;
-  return list.sort((a, b) => m(a) - m(b) || (a.row || 0) - (b.row || 0) || (a.created || 0) - (b.created || 0));
+  return list.sort((a, b) => logYear(a).localeCompare(logYear(b)) || m(a) - m(b) || (a.row || 0) - (b.row || 0) || (a.created || 0) - (b.created || 0));
 }
 
 function renderMain() {
@@ -154,13 +154,28 @@ function renderList() {
     list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${canWrite() && state.tab === state.me ? "Još ništa – dodaj prvi album gumbom dolje" : "Još nema albuma"}</div>`;
     return;
   }
-  let html = "", month = -1, i = 0;
-  const counts = {};
-  albums.forEach(a => counts[a.month || 0] = (counts[a.month || 0] || 0) + 1);
+  let html = "", month = -1, year = null, i = 0;
+  const counts = {}, yearCounts = {};
+  albums.forEach(a => { const ck = logYear(a) + "-" + (a.month || 0); counts[ck] = (counts[ck] || 0) + 1; yearCounts[logYear(a)] = (yearCounts[logYear(a)] || 0) + 1; });
   // the month that starts open: this month if it has albums, otherwise the latest one before it
-  const now = new Date().getMonth() + 1, ms = Object.keys(counts).map(Number).filter(Boolean);
+  const now = new Date().getMonth() + 1;
+  const latestYear = Object.keys(yearCounts).sort().pop();
+  const ms = Object.keys(counts).filter(k => k.startsWith(latestYear + "-")).map(k => +k.split("-")[1]).filter(Boolean);
   state.openMonth = ms.includes(now) ? now : Math.max(...ms.filter(x => x <= now), 0) || Math.max(...ms, 0);
   for (const a of albums) {
+    const y = logYear(a);
+    if (y !== year) {
+      // year label on top of its months; tap to fold the whole year (years start open)
+      if (month !== -1) html += `</div></section>`;
+      if (year !== null) html += `</div></div>`;
+      year = y; month = -1;
+      const yf = !!state.settings.yearsFolded?.[y];
+      html += `<div class="year ${yf ? "folded" : ""}" data-year="${y}">
+        <button class="year-head" data-act="fold-year" aria-expanded="${!yf}" title="${yf ? "Prikaži" : "Sakrij"} ${y}.">
+          <span class="year-num">${y}.</span><span class="year-count">${yearCounts[y]} ${yearCounts[y] === 1 ? "album" : "albuma"}</span><span class="chev" aria-hidden="true"></span>
+        </button><div class="year-body">`;
+    }
+    if (state.settings.yearsFolded?.[y]) continue;
     if ((a.month || 0) !== month) {
       if (month !== -1) html += `</div></section>`;
       month = a.month || 0;
@@ -169,7 +184,7 @@ function renderList() {
         <header class="month-head">
           <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
           <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Prikaži" : "Sakrij"}: ${name}">
-            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="Albuma: ${counts[month]}">${counts[month]}</span>
+            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="Albuma: ${counts[year + "-" + month]}">${counts[year + "-" + month]}</span>
           </button>
           <span class="month-rule" aria-hidden="true"></span>
           <button class="month-gear" data-act="month-style" aria-label="Uredi izgled: ${name}" title="Uredi izgled: ${name}">⚙︎</button>
@@ -177,7 +192,7 @@ function renderList() {
     }
     if (!isFolded(month)) html += cardHtml(a, i++);
   }
-  list.innerHTML = html + `</div></section>`;
+  list.innerHTML = html + (month !== -1 ? `</div></section>` : "") + `</div></div>`;
   if (state.scrollToEnd) {
     state.scrollToEnd = false;
     requestAnimationFrame(scrollToCurrentMonth);
@@ -292,6 +307,10 @@ document.addEventListener("click", e => {
 
   if (act === "toggle-card" && a) {
     toggleCard(a);
+  } else if (act === "fold-year") {
+    const y = btn.closest(".year").dataset.year, s = state.settings;
+    s.yearsFolded = { ...(s.yearsFolded || {}), [y]: !s.yearsFolded?.[y] };
+    saveSettings(); renderList();
   } else if (act === "fold-month" || act === "month-style") {
     const m = +btn.closest(".month").dataset.month;
     if (act === "month-style") return openMonthStyle(m);

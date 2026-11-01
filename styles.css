@@ -253,7 +253,7 @@ input, textarea, select { font-family: inherit; }
 }
 .month-gear:hover { background: color-mix(in srgb, var(--m) 15%, transparent); transform: rotate(60deg); }
 .month-icon { font-size: .55em; margin-right: .35em; vertical-align: .25em; }
-.month.folded .month-head { opacity: .55; border-bottom-style: dashed; margin-bottom: 0; }
+.month.folded .month-head { opacity: .55; margin-bottom: 0; }
 .month.folded .month-head h2::after { content: " ···"; font-size: .4em; vertical-align: middle; }
 
 /* style picker + month sheet */
@@ -621,7 +621,7 @@ button.sw { padding: 0; }
 [data-style="pop"] .month:nth-child(even) .month-head h2 { transform: rotate(1.2deg); }
 [data-style="pop"] .month-count { color: #000; font-weight: 700; }
 [data-style="pop"] .month-gear { width: 38px; height: 38px; color: #000; }
-[data-style="pop"] .month.folded .month-head { opacity: 1; border-bottom-style: solid; }
+[data-style="pop"] .month.folded .month-head { opacity: 1; }
 [data-style="pop"] .month.folded .month-head h2 { background: #FFF; }
 
 /* cards: flat month colour, black outline, hard shadow */
@@ -1836,3 +1836,81 @@ body.page-open { overflow: hidden; }
 [data-style="clear"] .overlay.page .form-actions .btn { height: 56px; font-size: 18px; }
 [data-style="vivid"] .overlay.page .sheet-title { font-size: 26px; }
 [data-style="clay"] .page-back { background: #FFF; border: 3px solid rgba(255, 255, 255, .7); box-shadow: var(--clay-shadow-sm); }
+
+/* ═════════════ v16: year label, European date field, page header spacing ═════════════ */
+/* year: a quiet label over its months; tap to fold the year */
+.year + .year { margin-top: 36px; }
+.year-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 2px; margin: 4px 0 0; background: none; border: none;
+  color: var(--text-2); font: inherit; cursor: pointer; text-align: left;
+}
+.year-num { font-size: 13px; font-weight: 800; letter-spacing: .14em; color: var(--text); }
+.year-count { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.year-head::after { content: ""; flex: 1; height: 1px; background: var(--soft); order: 3; }
+.year-head .chev { order: 4; margin: -3px 4px 0; transition: transform .25s var(--ease); }
+.year-head[aria-expanded="true"] .chev { transform: rotate(-135deg); margin-top: 5px; }
+.year .month:first-child { margin-top: 14px; }
+.year.folded .year-body { display: none; }
+#list > .month:last-child { min-height: 0; }
+#list > .year:last-child .month:last-child { min-height: calc(100dvh - var(--chrome-h, 130px) - 24px); }
+
+/* date: typed dd.mm.gggg + calendar button */
+.date-field { position: relative; display: flex; gap: 6px; }
+.date-field .fi { flex: 1; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.date-btn { flex: none; width: 46px; border-radius: var(--radius-sm); border: 1px solid var(--surface-2); background: var(--bg); font-size: 18px; cursor: pointer; }
+.date-native { position: absolute; right: 0; bottom: 0; width: 46px; height: 100%; opacity: 0; pointer-events: none; }
+.fg-date { grid-column: 1 / -1; }
+.fg-date .hint { min-height: 18px; }
+
+/* page header: back arrow, title, and whose table you're writing into */
+.overlay.page .sheet-header { gap: 12px; padding-left: max(14px, calc(50% - 336px)); padding-right: max(14px, calc(50% - 336px)); padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: 12px; }
+.page-back { margin-left: 0 !important; }
+.page-who { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: var(--round); background: var(--sunk); border: 1px solid var(--soft); font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.page-who .av { --sz: 24px; }
+.link-pair { display: grid; gap: 8px; margin-top: 16px; }
+.link-pair .sheet-link { margin-top: 0; width: 100%; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; text-align: left; color: var(--text); }
+.link-pair + .hint { margin-top: 8px; }
+
+[data-style="pop"] .page-back { width: 42px; height: 42px; }
+[data-style="pop"] .page-who { border: 3px solid #000; border-radius: 0; background: #FFF; color: #000; }
+[data-style="pop"] .year-num { color: #000; } [data-style="pop"] .year-head::after { height: 3px; background: #000; }
+[data-style="pop"] .date-btn { border: 3px solid #000; border-radius: 0; background: #FFF; box-shadow: 3px 3px 0 #000; }
+[data-style="swiss"] .page-who, [data-style="mag"] .page-who { border-radius: 0; background: none; border-color: var(--surface-3); }
+[data-style="swiss"] .year-head::after, [data-style="mag"] .year-head::after { background: #000; }
+[data-style="swiss"] .date-btn, [data-style="mag"] .date-btn { border-radius: 0; }
+[data-style="clear"] .date-btn { width: 56px; border: 2px solid #6B7280; }
+[data-style="clear"] .year-num { font-size: 16px; } [data-style="clear"] .year-count { font-size: 15px; color: #374151; }
+[data-style="clear"] .page-who { font-size: 16px; }
+[data-style="vivid"] .year-num { color: var(--vb-lime); } [data-style="vivid"] .year-head::after { height: 3px; background: #2A2A2A; }
+[data-style="nature"] .year-num { font-family: Georgia, serif; font-weight: 400; letter-spacing: .06em; font-size: 15px; color: var(--leaf-ink); }
+[data-style="mag"] .year-num { font-family: var(--display); font-size: 18px; letter-spacing: 0; }
+[data-style="clay"] .page-who, [data-style="clay"] .date-btn { background: #FFF; border: 3px solid rgba(255, 255, 255, .7); box-shadow: var(--clay-shadow-sm); }
+
+/* folded months sit as a compact list; open months keep their breathing room */
+.month.folded .month-head, .month .month-head { border-bottom: none !important; }
+.month.folded { margin-top: calc(14px * var(--month-scale, 1)); }
+.year .month.folded:first-child { margin-top: 14px; }
+.month.folded + .month:not(.folded) { margin-top: calc(30px * var(--month-scale, 1)); }
+.month:not(.folded) + .month { margin-top: calc(40px * var(--month-scale, 1)); }
+
+/* Švicarski: tighter, calmer rhythm */
+[data-style="swiss"] .month { padding: 2rem 0; }
+[data-style="swiss"] .month.folded { padding: 1.1rem 0; margin-top: 0; }
+[data-style="swiss"] .month.folded + .month, [data-style="swiss"] .month + .month { margin-top: 0; }
+[data-style="swiss"] .year .month:first-child { border-top: none; padding-top: 1rem; }
+[data-style="swiss"] .month.folded .month-head h2 { font-size: calc(var(--mh) * var(--month-scale, 1) * .62) !important; }
+[data-style="swiss"] .month.folded .month-num { margin-bottom: 0; }
+[data-style="swiss"] .year-head { padding: 10px 0; }
+[data-style="swiss"] .card .card-main { padding-left: 14px; }
+[data-style="swiss"] .card-top { padding-right: 2px; }
+[data-style="swiss"] .who { min-height: 36px; }
+[data-style="swiss"] .album-list { margin-top: 4px; }
+@media (max-width: 768px) {
+  [data-style="swiss"] .month .month-head { margin-bottom: .75rem; }
+  [data-style="swiss"] .month.folded .month-head { margin-bottom: 0; }
+}
+/* folded months in the other ruled/serif styles: smaller titles so the list stays calm */
+[data-style="mag"] .month.folded { padding-top: 10px; margin-top: 18px; border-top-width: 1px; }
+[data-style="mag"] .month.folded .month-head h2 { font-size: calc(var(--mh) * var(--month-scale, 1) * .55) !important; }
+[data-style="mag"] .month.folded .month-head { margin-bottom: 0; }
+figure.own blockquote.impression::before { content: none; }

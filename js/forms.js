@@ -209,7 +209,8 @@ function openEditor(a = null, prefill = {}) {
   const recOpts = ["Da", "Ne", "Meh"];
   if (f.recommend && !recOpts.includes(f.recommend)) recOpts.push(f.recommend);
   ov.innerHTML = `<form class="sheet" autocomplete="off" aria-label="${editing ? "Uredi album" : "Novi album"}">
-    <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div></div>
+    <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div>
+      <span class="page-who" title="Tablica u koju upisuješ">${avatar(a?.owner || state.me, 24)}<span>${esc(a?.owner || state.me)}</span></span></div>
     <div class="sheet-body">
       <div class="step" style="--s:0">
         <div class="fg"><label class="fl" for="f-artist">Izvođač</label><input class="fi fi-big" id="f-artist" value="${esc(src.artist || "")}" placeholder="npr. Pink Floyd" required></div>
@@ -235,7 +236,11 @@ function openEditor(a = null, prefill = {}) {
       <details class="group more step" style="--s:6"><summary>Detalji <small class="auto-sum" id="f-auto-sum">popunjavaju se sami</small></summary>
         <div class="hint found" id="f-found" aria-live="polite"></div>
         <div class="row2">
-          <div class="fg"><label class="fl" for="f-date">Datum slušanja</label><input type="date" class="fi" id="f-date" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
+          <div class="fg fg-date"><label class="fl" for="f-date">Datum slušanja</label>
+            <div class="date-field"><input class="fi" id="f-date" inputmode="numeric" autocomplete="off" placeholder="dd.mm.gggg" maxlength="10" value="${esc(fmtDMY(editing ? isoDate(a.listenedDate) : todayIso()))}">
+              <button type="button" class="date-btn" id="f-date-btn" aria-label="Odaberi datum u kalendaru">📅</button>
+              <input type="date" class="date-native" id="f-date-native" tabindex="-1" aria-hidden="true" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
+            <div class="hint" id="f-date-hint" aria-live="polite"></div></div>
           <div class="fg"><label class="fl" for="f-year">Godina</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="automatski" inputmode="numeric"></div>
           <div class="fg"><label class="fl" for="f-duration">Trajanje</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="automatski"></div>
           <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="automatski"></div>
@@ -317,11 +322,39 @@ function openEditor(a = null, prefill = {}) {
   };
   tracksI.addEventListener("input", () => { const have = new Set(picked().map(norm)); $$("button", chips).forEach(b => b.classList.toggle("on", have.has(norm(b.dataset.t)))); });
   // one-line summary of the automatic details, so the section can stay closed
+  // date: typed day.month.year (European), or picked from the calendar; shows which month it lands in
+  const dateI = $("#f-date", ov), dateN = $("#f-date-native", ov), dateHint = $("#f-date-hint", ov);
+  const owner = a?.owner || state.me;
+  const monthTarget = () => {
+    const iso = parseDMY(dateI.value);
+    if (!iso) return dateI.value.trim() ? { bad: true } : null;
+    const m = +iso.slice(5, 7), y = iso.slice(0, 4);
+    const exists = (state.view?.albums || []).some(x => x.owner === owner && x.month === m && logYear(x) === y && (!a || x.key !== a.key));
+    return { m, y, exists };
+  };
+  const paintDate = () => {
+    const t = monthTarget();
+    dateHint.className = "hint" + (t?.bad ? " warn" : "");
+    dateHint.textContent = !t ? "" : t.bad ? "Upiši datum kao dd.mm.gggg, npr. 7.11.2026" : t.exists ? `→ ide u ${MONTH_NAMES[t.m - 1]} ${t.y}.` : `→ novi mjesec: ${MONTH_NAMES[t.m - 1]} ${t.y}. ✨`;
+  };
+  dateI.addEventListener("input", e => {
+    // 07112026 → 07.11.2026 while typing digits only
+    const v = dateI.value;
+    if (/^\d{8}$/.test(v)) dateI.value = `${v.slice(0, 2)}.${v.slice(2, 4)}.${v.slice(4)}`;
+    const iso = parseDMY(dateI.value); if (iso) dateN.value = iso;
+    paintDate(); paintSum();
+  });
+  dateI.addEventListener("blur", () => { const iso = parseDMY(dateI.value); if (iso) dateI.value = fmtDMY(iso); });
+  $("#f-date-btn", ov).addEventListener("click", () => { try { dateN.showPicker(); } catch (e) { dateN.focus(); dateN.click(); } });
+  dateN.addEventListener("change", () => { if (dateN.value) { dateI.value = fmtDMY(dateN.value); paintDate(); paintSum(); } });
+  paintDate();
+
   const paintSum = () => {
-    const d = $("#f-date", ov).value, parts = [d && fmtDate(d), $("#f-year", ov).value, $("#f-duration", ov).value, $("#f-genre", ov).value].filter(Boolean);
+    const t = monthTarget(), d = parseDMY(dateI.value);
+    const parts = [t && !t.bad ? `${MONTH_NAMES[t.m - 1]}${t.exists ? "" : " (novi)"}` : "", d && fmtDMY(d), $("#f-year", ov).value, $("#f-duration", ov).value, $("#f-genre", ov).value].filter(Boolean);
     $("#f-auto-sum", ov).textContent = parts.length ? parts.join(" · ") : "popunjavaju se sami";
   };
-  ["#f-date", "#f-year", "#f-duration", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
+  ["#f-year", "#f-duration", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
   paintSum();
 
   let lt;
@@ -336,11 +369,12 @@ function openEditor(a = null, prefill = {}) {
     const val = id => $(id, ov).value.trim();
     const data = {
       artist: val("#f-artist"), album: val("#f-album"), year: val("#f-year"), genre: val("#f-genre"),
-      duration: val("#f-duration"), listenedDate: $("#f-date", ov).value || "", rating: f.rating,
+      duration: val("#f-duration"), listenedDate: parseDMY(dateI.value) || "", rating: f.rating,
       impression: val("#f-impression"), standoutTracks: val("#f-tracks"), recommend: f.recommend,
       comments: val("#f-comments")
     };
     if (!data.artist || !data.album) return toast("Izvođač i album su obavezni");
+    if (dateI.value.trim() && !data.listenedDate) { $(".group.more", ov).open = true; dateI.focus(); return toast("Datum upiši kao dd.mm.gggg"); }
     const L = f.lookup || {};
     ["spotify", "youtube", "apple", "deezer"].forEach(k => { if (L[k] && !(editing && a[k])) data[k] = L[k]; });
     if (editing) {
@@ -360,7 +394,7 @@ function openEditor(a = null, prefill = {}) {
     }
     close();
   });
-  setTimeout(() => (editing ? null : artistI.value ? $("#f-impression", ov) : artistI)?.focus({ preventScroll: true }), 380);
+  // no automatic keyboard: you see the whole form first and tap where you want to start
 }
 
 // ═══════════════ settings ═══════════════
@@ -379,7 +413,11 @@ function openSettings(section) {
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="mini" id="s-photo">📷 Promijeni fotku</button>${me.avatar ? `<button class="mini danger" id="s-nophoto">Makni fotku</button>` : ""}</div></div>
       </div>
       <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px" aria-label="Boja profila ${c}"></button>`).join("")}</div>` : ""}
-      ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Otvori Google tablicu <span aria-hidden="true">↗</span></a>` : ""}
+      <div class="link-pair">
+        ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Otvori Google tablicu <span aria-hidden="true">↗</span></a>` : ""}
+        <button class="sheet-link" id="s-share" type="button">🔗 Pošalji link prijatelju <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="hint">Taj link uvijek prvo pita „Tko sluša?”, pa nitko ne upada u tuđu tablicu.</div>
 
       <details class="group" ${section === "style" ? "open" : ""}><summary>🎞️ Stil <small class="group-val">${esc(style().name)}</small></summary>
       <div class="styles" id="s-style">${Object.entries(STYLES).map(([k, st]) => `
@@ -478,6 +516,11 @@ function openSettings(section) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob); link.download = `muzika-backup-${todayIso()}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  });
+  $("#s-share", ov).addEventListener("click", async () => {
+    const url = location.origin + location.pathname + "?tko";
+    try { if (navigator.share) { await navigator.share({ title: "Muzika", text: "Upiši što slušaš 🎧", url }); return; } } catch (e) { if (e.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(url); toast("Link kopiran 📋"); } catch (e) { prompt("Kopiraj link:", url); }
   });
   $("#s-sync", ov).addEventListener("click", () => { flush(); refresh(true); toast("Sinkroniziram…"); });
   $("#s-switch", ov).addEventListener("click", () => { close(); state.me = null; localStorage.removeItem("muzika_user"); renderLogin(); });
@@ -592,6 +635,13 @@ function renderBg() {
 // ═══════════════ boot ═══════════════
 (function boot() {
   loadCache();
+  // a shared link (…/?tko) always starts at "Tko sluša?" – nobody lands in someone else's table
+  const params = new URLSearchParams(location.search);
+  if (params.has("tko")) {
+    localStorage.removeItem("muzika_user");
+    params.delete("tko");
+    history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params : "") + location.hash);
+  }
   const saved = localStorage.getItem("muzika_user");
   state.me = saved || null;
   loadSettings(); applyTheme(); loadSeen();

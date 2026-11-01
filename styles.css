@@ -1914,3 +1914,56 @@ body.page-open { overflow: hidden; }
 [data-style="mag"] .month.folded .month-head h2 { font-size: calc(var(--mh) * var(--month-scale, 1) * .55) !important; }
 [data-style="mag"] .month.folded .month-head { margin-bottom: 0; }
 figure.own blockquote.impression::before { content: none; }
+
+/* ═════════════ v17: welcome + rules, colour marks ═════════════ */
+:root { --mark-first: #8B5CF6; --mark-re: #3B82F6; }
+.mark-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; flex: none; }
+.mark-dot.big { width: 18px; height: 18px; margin: 0; vertical-align: middle; }
+.mark-dot.mark-first { background: var(--mark-first); box-shadow: 0 0 0 2px color-mix(in srgb, var(--mark-first) 25%, transparent); }
+.mark-dot.mark-re { background: var(--mark-re); box-shadow: 0 0 0 2px color-mix(in srgb, var(--mark-re) 25%, transparent); }
+.mark-pill { display: inline-block; padding: 1px 8px; border-radius: var(--round); font-size: 11.5px; font-weight: 700; color: #FFF; }
+.mark-pill.mark-first { background: #7C3AED; } .mark-pill.mark-re { background: #2563EB; }
+/* form: two tick-like chips under the album name */
+.marks { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 14px; }
+.mark-chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: var(--round); cursor: pointer;
+  border: 1px solid var(--surface-2); background: var(--bg); color: var(--text-2); font: inherit; font-size: 13px; font-weight: 650;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.mark-chip i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; opacity: .7; }
+.mark-chip.mark-first.on { border-color: var(--mark-first); background: color-mix(in srgb, var(--mark-first) 18%, var(--bg)); color: var(--text); }
+.mark-chip.mark-first.on i { background: var(--mark-first); border-color: var(--mark-first); opacity: 1; }
+.mark-chip.mark-re.on { border-color: var(--mark-re); background: color-mix(in srgb, var(--mark-re) 18%, var(--bg)); color: var(--text); }
+.mark-chip.mark-re.on i { background: var(--mark-re); border-color: var(--mark-re); opacity: 1; }
+
+/* welcome */
+.welcome-screen .login-box { max-width: 480px; text-align: left; max-height: calc(100dvh - 40px); overflow-y: auto; padding: 28px 24px 22px; }
+.welcome-hi { font-size: 40px; line-height: 1; margin-bottom: 10px; animation: wave 1.6s ease-in-out .3s 2; transform-origin: 70% 80%; display: inline-block; }
+@keyframes wave { 0%, 100% { transform: rotate(0); } 20%, 60% { transform: rotate(16deg); } 40%, 80% { transform: rotate(-8deg); } }
+.welcome .login-title { font-size: 26px; margin-bottom: 8px; }
+.welcome-lead { color: var(--text-2); font-size: 15px; line-height: 1.55; margin: 0 0 18px; }
+.rules { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.rules li { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; line-height: 1.5; color: var(--text); }
+.r-ic { flex: none; width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+.welcome-sign { margin: 0 0 18px; font-size: 15px; color: var(--text); font-style: italic; }
+.welcome-sign small { color: var(--text-3); font-style: normal; }
+.welcome-go { width: 100%; height: 52px; font-size: 17px; }
+.welcome-screen.closing { animation: fadeOut .2s ease forwards; }
+.rules-page .welcome-hi, .rules-page .welcome .login-title { display: none; }
+.rules-page .welcome { padding-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .welcome-hi { animation: none; } }
+
+[data-style="pop"] .mark-chip { border: 3px solid #000; border-radius: 0; background: #FFF; color: #000; box-shadow: 3px 3px 0 #000; }
+[data-style="pop"] .mark-chip.on { color: #000; }
+[data-style="pop"] .mark-pill { border-radius: 0; border: 2px solid #000; }
+[data-style="pop"] .mark-dot { border: 2px solid #000; border-radius: 0; box-shadow: none; }
+[data-style="swiss"] .mark-chip, [data-style="mag"] .mark-chip { border-radius: 0; }
+[data-style="swiss"] .mark-pill, [data-style="mag"] .mark-pill { border-radius: 0; }
+[data-style="clear"] .mark-chip { min-height: 48px; font-size: 16px; border: 2px solid #6B7280; }
+[data-style="clear"] .mark-pill { font-size: 14px; }
+[data-style="clear"] .mark-dot { width: 12px; height: 12px; }
+[data-style="clear"] .rules li { font-size: 17px; }
+[data-style="clay"] .mark-chip { background: #FFF; border: 3px solid rgba(255, 255, 255, .7); box-shadow: var(--clay-shadow-sm); }
+[data-style="vivid"] .card .mark-dot { box-shadow: 0 0 0 2px #000; }
+[data-style="vivid"] .card .mark-pill { border: 2px solid #000; }
+[data-style="nature"] .mark-chip { background: #FFFFF4; border-color: rgba(34, 139, 34, .25); color: var(--leaf-ink); }

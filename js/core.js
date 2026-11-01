@@ -314,7 +314,7 @@ function applyPending(snap, outbox) {
       case "add": {
         const nk = normKey(p.artist, p.album);
         if (v.albums.some(a => a.key === p.owner + "|" + nk && a.created >= (p.ts || 0) - 60000)) break;
-        v.albums.push({ ...p, id: "tmp_" + p.clientId, nk, key: p.owner + "|" + nk, row: 1e6, created: p.ts,
+        v.albums.push({ ...p, mark: p.mark || "", id: "tmp_" + p.clientId, nk, key: p.owner + "|" + nk, row: 1e6, created: p.ts,
           month: isoDate(p.listenedDate) ? +p.listenedDate.slice(5, 7) : new Date().getMonth() + 1, pending: true });
         break;
       }

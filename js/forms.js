@@ -29,7 +29,39 @@ function pickFile() {
 }
 
 // ═══════════════ login / onboarding ═══════════════
+// ═══════════════ welcome: what this is + the group's rules ═══════════════
+const WELCOME_KEY = "muzika_welcomed";
+function welcomeHtml() {
+  return `<div class="welcome">
+    <div class="welcome-hi" aria-hidden="true">👋</div>
+    <h1 class="login-title">Bok! Ovo je Muzika.</h1>
+    <p class="welcome-lead">Naša zajednička tablica albuma – samo ljepša i u džepu. Sve što ovdje upišeš odmah se pojavi i u Google tablici, i obrnuto.</p>
+    <ul class="rules">
+      <li><span class="r-ic" aria-hidden="true">🗂️</span><span>Svatko ima <b>svoju tablicu</b> i piše samo u nju. Novi ste? Odaberite „Novi/a sam” i dobit ćete svoju karticu.</span></li>
+      <li><span class="r-ic" aria-hidden="true">🙅</span><span><b>Ne brišemo tuđe albume.</b> Ali komentari i reakcije na tuđe albume – itekako! 💬</span></li>
+      <li><span class="r-ic"><span class="mark-dot mark-first big" aria-hidden="true"></span></span><span><b>Ljubičasto</b> = izvođač kojeg slušaš <b>prvi put</b>. Npr. nikad nisi čuo/la ništa od Živog Blata i poslušaš album.</span></li>
+      <li><span class="r-ic"><span class="mark-dot mark-re big" aria-hidden="true"></span></span><span><b>Plavo</b> = album koji slušaš <b>ponovno</b>. Npr. odlučiš se na relistening Konca Konca.</span></li>
+      <li><span class="r-ic" aria-hidden="true">⏱️</span><span>Trajanje albuma je poželjno – aplikacija ga sama pronađe.</span></li>
+      <li><span class="r-ic" aria-hidden="true">🔗</span><span>Šeranje linka dobrim ljudima je dobro došlo!</span></li>
+    </ul>
+    <p class="welcome-sign">Zabavite se i vidimo se u tablicama!<br><small>– moderator, Osto</small></p>
+  </div>`;
+}
+function renderWelcome(onDone) {
+  $(".login")?.remove();
+  const el = document.createElement("div");
+  el.className = "login welcome-screen";
+  el.innerHTML = `<div class="login-box">${welcomeHtml()}<button class="btn btn-primary welcome-go" id="w-go">Kreni 🎧</button></div>`;
+  document.body.appendChild(el);
+  $("#w-go", el).addEventListener("click", () => {
+    try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) {}
+    el.classList.add("closing");
+    setTimeout(() => { el.remove(); onDone(); }, 200);
+  });
+}
+
 function renderLogin(joining = false) {
+  if (!joining && !localStorage.getItem(WELCOME_KEY)) { if (!$(".welcome-screen")) renderWelcome(() => renderLogin()); return; }
   $(".login")?.remove();
   const el = document.createElement("div");
   el.className = "login";
@@ -216,6 +248,10 @@ function openEditor(a = null, prefill = {}) {
         <div class="fg"><label class="fl" for="f-artist">Izvođač</label><input class="fi fi-big" id="f-artist" value="${esc(src.artist || "")}" placeholder="npr. Pink Floyd" required></div>
         <div class="fg"><label class="fl" for="f-album">Album</label><input class="fi fi-big" id="f-album" value="${esc(src.album || "")}" placeholder="npr. Animals" required></div>
         <div class="hint hide" id="f-also"></div>
+        <div class="marks" id="f-mark" role="radiogroup" aria-label="Oznaka">
+          <button type="button" role="radio" data-v="first" class="mark-chip mark-first"><i aria-hidden="true"></i>Prvi put slušam izvođača</button>
+          <button type="button" role="radio" data-v="re" class="mark-chip mark-re"><i aria-hidden="true"></i>Ponovno slušanje</button>
+        </div>
       </div>
       <div class="step" style="--s:1">
         <div class="fg"><label class="fl">Ocjena</label><div id="f-rating"></div></div>
@@ -265,13 +301,24 @@ function openEditor(a = null, prefill = {}) {
   const artistI = $("#f-artist", ov), albumI = $("#f-album", ov), found = $("#f-found", ov);
 
   // "others listened to this too" + duplicate warning
+  // the group's colour code: 🟣 first time hearing this artist, 🔵 relistening an album
+  f.mark = a?.mark || ""; let markTouched = editing;
+  const paintMark = () => $$("#f-mark button", ov).forEach(b => { const on = b.dataset.v === f.mark; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  $$("#f-mark button", ov).forEach(b => b.addEventListener("click", () => { markTouched = true; f.mark = f.mark === b.dataset.v ? "" : b.dataset.v; paintMark(); }));
+  paintMark();
   const checkAlso = () => {
     const nk = normKey(artistI.value, albumI.value), el = $("#f-also", ov);
     const owners = [...(D.byNk.get(nk) || [])].filter(o => !a || o !== a.owner);
     const dupe = !editing && owners.includes(state.me);
     const others = owners.filter(o => o !== state.me);
-    el.className = "hint " + (dupe ? "warn" : "ok") + (!albumI.value || (!others.length && !dupe) ? " hide" : "");
-    el.innerHTML = dupe ? "⚠️ Ovaj album si već upisao/la." : others.length ? `✨ Slušali su ga i: ${others.map(esc).join(", ")}!` : "";
+    el.className = "hint " + (dupe ? "ok" : "ok") + (!albumI.value || (!others.length && !dupe) ? " hide" : "");
+    el.innerHTML = dupe ? "🔵 Ovaj album već imaš – označeno kao ponovno slušanje." : others.length ? `✨ Slušali su ga i: ${others.map(esc).join(", ")}!` : "";
+    // suggest the mark until the user picks one themselves
+    if (!markTouched && artistI.value.trim()) {
+      const na = norm(artistI.value), mine = (state.view?.albums || []).filter(x => x.owner === state.me);
+      f.mark = dupe ? "re" : !mine.some(x => norm(x.artist) === na) ? "first" : "";
+      paintMark();
+    }
   };
 
   // quietly fill year / genre / duration (only empty or still-automatic fields) and remember the links
@@ -371,7 +418,7 @@ function openEditor(a = null, prefill = {}) {
       artist: val("#f-artist"), album: val("#f-album"), year: val("#f-year"), genre: val("#f-genre"),
       duration: val("#f-duration"), listenedDate: parseDMY(dateI.value) || "", rating: f.rating,
       impression: val("#f-impression"), standoutTracks: val("#f-tracks"), recommend: f.recommend,
-      comments: val("#f-comments")
+      comments: val("#f-comments"), mark: f.mark || ""
     };
     if (!data.artist || !data.album) return toast("Izvođač i album su obavezni");
     if (dateI.value.trim() && !data.listenedDate) { $(".group.more", ov).open = true; dateI.focus(); return toast("Datum upiši kao dd.mm.gggg"); }
@@ -414,6 +461,7 @@ function openSettings(section) {
       </div>
       <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px" aria-label="Boja profila ${c}"></button>`).join("")}</div>` : ""}
       <div class="link-pair">
+        <button class="sheet-link" id="s-rules" type="button">📜 Pravila i upute <span aria-hidden="true">›</span></button>
         ${state.snap?.sheetUrl ? `<a class="sheet-link" href="${esc(state.snap.sheetUrl)}" target="_blank" rel="noopener">📊 Otvori Google tablicu <span aria-hidden="true">↗</span></a>` : ""}
         <button class="sheet-link" id="s-share" type="button">🔗 Pošalji link prijatelju <span aria-hidden="true">↗</span></button>
       </div>
@@ -516,6 +564,14 @@ function openSettings(section) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob); link.download = `muzika-backup-${todayIso()}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  });
+  $("#s-rules", ov).addEventListener("click", () => {
+    const r = document.createElement("div");
+    r.className = "overlay rules-page";
+    r.innerHTML = `<div class="sheet"><div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">Pravila i upute</div></div><div class="sheet-body">${welcomeHtml()}</div></div>`;
+    document.body.appendChild(r);
+    const closeR = asPage(r);
+    $$("[data-close]", r).forEach(b => b.addEventListener("click", closeR));
   });
   $("#s-share", ov).addEventListener("click", async () => {
     const url = location.origin + location.pathname + "?tko";
@@ -647,6 +703,8 @@ function renderBg() {
   loadSettings(); applyTheme(); loadSeen();
   state.scrollToEnd = true;
   if (state.me) rebuild(); else renderLogin();
+  // people who already used the app see the welcome + rules once, too
+  if (state.me && !localStorage.getItem(WELCOME_KEY)) renderWelcome(() => {});
   refresh(true).then(() => { if (!state.me) renderLogin(); });
   startPolling();
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});

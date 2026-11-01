@@ -213,9 +213,10 @@ function readAllAlbums(users) {
   users.forEach(function (u) {
     var sheet = ss.getSheetByName(u.sheet);
     if (!sheet || sheet.getLastRow() === 0) return;
-    var data = sheet.getDataRange().getValues();
+    var range = sheet.getDataRange(), data = range.getValues();
     var info = detectHeaders(data);
     if (!info) return;
+    var bgs = range.getBackgrounds(); // the Sheet's colour code: purple artist = first listen, blue album = relisten
 
     var section = 0, prev = 0; // month from divider rows / previous album
     for (var r = info.headerRow + 1; r < data.length; r++) {
@@ -228,6 +229,8 @@ function readAllAlbums(users) {
       var dm = /^\d{4}-(\d{2})-\d{2}$/.test(a.listenedDate) ? +a.listenedDate.substr(5, 2) : 0;
       a.month = dm || section || prev;
       prev = a.month;
+      var mk = markFromColors(bgs[r][info.cols.artist], bgs[r][info.cols.album]);
+      if (mk) a.mark = mk;
       a.owner = u.name;
       a.row = r + 1;                       // 1-based sheet row
       a.id = u.sheet + "_" + (r + 1);
@@ -454,6 +457,7 @@ function addAlbum(p, pre) {
     }
   }
   writeFields(sheet, targetRow, cols, p);
+  if (p.mark) writeMark(sheet, targetRow, cols, p.mark);
 
   var key = u.name + "|" + normKey(p.artist, p.album);
   var meta = { owner: u.name, artist: p.artist, album: p.album, clientId: p.clientId || "", created: String(Date.now()) };
@@ -475,6 +479,7 @@ function addAlbum(p, pre) {
 function updateAlbum(p) {
   var loc = locateRow(p);
   writeFields(loc.sheet, loc.row, loc.info.cols, p);
+  if (p.mark !== undefined) writeMark(loc.sheet, loc.row, loc.info.cols, p.mark);
 
   var owner = loc.user.name;
   var oldKey = owner + "|" + normKey(p.expectArtist !== undefined ? p.expectArtist : loc.found.artist,
@@ -531,6 +536,36 @@ function locateRow(p) {
     for (var r = info.headerRow + 1; r < data.length; r++) if (matches(r)) return result(r + 1);
   }
   throw new Error("Album not found – the Sheet changed. Refresh and try again.");
+}
+
+/* ═══════════════════════════ colour marks (the group's rules) ═══════════════════════════
+ *  purple artist cell = first time hearing this artist, blue album cell = relistening.
+ *  Only clearly purple / clearly blue cells count, so decorative row tints are left alone. */
+var MARK_COLORS = { first: "#d9d2e9", re: "#c9daf8" };
+
+function hueOf(hex) {
+  var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return null;
+  var n = parseInt(m[1], 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d < 0.07) return null; // white / grey
+  var h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: d / (1 - Math.abs(max + min - 1) || 1) };
+}
+function markFromColors(artistBg, albumBg) {
+  var a = hueOf(artistBg), b = hueOf(albumBg);
+  if (a && a.h >= 245 && a.h <= 300) return "first";
+  if (b && b.h >= 195 && b.h < 245) return "re";
+  return "";
+}
+function writeMark(sheet, row, cols, mark) {
+  var ac = sheet.getRange(row, cols.artist + 1), bc = sheet.getRange(row, cols.album + 1);
+  var cur = markFromColors(ac.getBackground(), bc.getBackground());
+  // clear only our own colour code, never someone's decorative tint
+  if (cur === "first" && mark !== "first") ac.setBackground(null);
+  if (cur === "re" && mark !== "re") bc.setBackground(null);
+  if (mark === "first") ac.setBackground(MARK_COLORS.first);
+  if (mark === "re") bc.setBackground(MARK_COLORS.re);
 }
 
 function writeFields(sheet, row, cols, p) {

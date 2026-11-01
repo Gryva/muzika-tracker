@@ -231,14 +231,14 @@ function cardHtml(a, i) {
   // each standout track opens straight on YouTube
   const trackList = tracks ? tracks.split(/\s*[,;]\s*|\s+\/\s+/).map(t => t.trim()).filter(t => t && !isPlaceholder(t)) : [];
   // when open, the quick facts move up into the card's head; the body keeps the words
-  const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}</div>` : "";
+  const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}${a.mark ? `<span class="f-rec"><span class="mark-pill mark-${a.mark}">${a.mark === "first" ? "prvi put" : "ponovno"}</span></span>` : ""}</div>` : "";
   const moreOpen = state.moreFor === a.key;
 
   return `
   <article class="card ${fresh ? "enter fade-in" : ""} ${a.pending ? "pending" : ""} ${expanded ? "open" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--tint:${monthTint(a.month)};--i:${Math.min(i, 12)}">
     <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "zatvori" : "otvori"}">
       <div class="card-main">
-        <div class="artist">${esc(a.artist)}</div>
+        <div class="artist">${a.mark === "first" ? `<span class="mark-dot mark-first" title="Prvi put slušam izvođača" aria-label="Prvi put"></span>` : a.mark === "re" ? `<span class="mark-dot mark-re" title="Ponovno slušanje" aria-label="Ponovno"></span>` : ""}${esc(a.artist)}</div>
         <div class="album-name">${esc(a.album)}${isNew(a) ? ` <span class="new-pill tag">NOVO</span>` : ""}${a.pending ? ` <span class="pending-pill" title="Spremljeno na uređaju, čeka sinkronizaciju">⏳</span>` : ""}</div>
         ${headFacts}
       </div>
@@ -571,7 +571,7 @@ function rebuild() {
   }
   initSeenIfNeeded();
   state.notifs = computeNotifs();
-  if ($(".login")) { if (!$(".login form")) renderLogin(); return; }
+  if ($(".login:not(.welcome-screen)")) { if (!$(".login form")) renderLogin(); return; }
   if (!state.me) return;
   renderHeader(); renderTabs(); renderMain();
 }

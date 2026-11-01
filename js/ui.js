@@ -47,7 +47,7 @@ function renderHeader() {
   const n = state.notifs.length;
   h.innerHTML = `
     <div class="header-inner">
-      <div class="logo">Muzika</div>
+      <button class="logo" id="btn-logo" title="O aplikaciji i pravila" aria-label="Muzika – o aplikaciji i pravila">Muzika</button>
       <span class="sync" id="sync"></span>
       <div class="spacer"></div>
       ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Aktivnost" aria-label="Aktivnost${n ? ` (${n} novo)` : ""}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
@@ -56,6 +56,7 @@ function renderHeader() {
     </div>`;
   setSync();
   $("#btn-settings").addEventListener("click", () => openSettings());
+  $("#btn-logo").addEventListener("click", () => openRulesPage());
   $("#btn-login")?.addEventListener("click", () => { state.me = null; renderLogin(); });
   $("#btn-bell")?.addEventListener("click", togglePanel);
   if (n > (renderHeader._last || 0) && renderHeader._last !== undefined) $("#btn-bell")?.classList.add("wiggle");
@@ -205,6 +206,26 @@ function renderList() {
 const cardOpen = a => state.settings.cards === "open" ? !state.openCards.has(a.key) : state.openCards.has(a.key);
 
 /** "★ 4.5+" for the compact row; raw text if someone typed something unusual in the Sheet */
+/** "Istaknute pjesme" as people really write it:
+ *  songs split by commas, semicolons, "+" or " / "; "album!", "albumčina!", "sve", "cijeli album"… = the whole album
+ *  (anything written after that, like "sve, moj najdraži album ikad", stays as a little note). */
+const WHOLE_ALBUM = /^(album\w*|albumčin\w*|cijeli( album)?|cijela ploča|sve|sva|whole( album)?|all|everything|full album|svaka( pjesma)?|sve pjesme)$/i;
+function parseStandouts(text) {
+  const out = { whole: false, word: "", songs: [], rest: "" };
+  if (!text || isPlaceholder(text)) return out;
+  const parts = String(text).split(/\s*[,;+\n]\s*|\s+\/\s+/).map(t => t.trim()).filter(t => t && !isPlaceholder(t));
+  if (!parts.length) return out;
+  const first = parts[0].replace(/[!.?…]+$/u, "").trim();
+  if (WHOLE_ALBUM.test(first)) {
+    out.whole = true;
+    out.word = /^album/i.test(first) && first.toLowerCase() !== "album" ? parts[0] : "";
+    out.rest = parts.slice(1).join(", ");
+    return out;
+  }
+  out.songs = parts;
+  return out;
+}
+
 function scoreHtml(r) {
   if (!r) return "";
   const p = parseRating(r);
@@ -228,8 +249,7 @@ function cardHtml(a, i) {
     a.listenedDate && "slušano " + esc(fmtDate(a.listenedDate))
   ].filter(Boolean);
   const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
-  // each standout track opens straight on YouTube
-  const trackList = tracks ? tracks.split(/\s*[,;]\s*|\s+\/\s+/).map(t => t.trim()).filter(t => t && !isPlaceholder(t)) : [];
+  const st = parseStandouts(tracks);
   // when open, the quick facts move up into the card's head; the body keeps the words
   const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}${a.mark ? `<span class="f-rec"><span class="mark-pill mark-${a.mark}">${a.mark === "first" ? "prvi put" : "ponovno"}</span></span>` : ""}</div>` : "";
   const moreOpen = state.moreFor === a.key;
@@ -254,8 +274,11 @@ function cardHtml(a, i) {
         <figcaption>${avatar(a.owner, 18)}<span>Dojam${isMe(a.owner) ? "" : " · " + esc(a.owner)}</span></figcaption>
         <blockquote class="impression">${esc(a.impression)}</blockquote>
       </figure>` : ""}
-      ${trackList.length ? `<div class="tracks-row"><span class="mini-label">Istaknute pjesme</span>
-        <div class="track-links">${trackList.map(t => `<a class="track" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(a.artist + " " + t)}" aria-label="${esc(t)} na YouTubeu"><span class="play" aria-hidden="true">▶</span>${esc(t)}</a>`).join("")}</div></div>` : ""}
+      ${st.whole || st.songs.length || st.rest ? `<div class="tracks-row"><span class="mini-label">Istaknute pjesme</span>
+        <div class="track-links">
+          ${st.whole ? `<a class="track whole" target="_blank" rel="noopener" href="${esc(a.youtube || "https://www.youtube.com/results?search_query=" + encodeURIComponent(a.artist + " " + a.album + " full album"))}" aria-label="Cijeli album ${esc(a.album)} na YouTubeu"><span class="play" aria-hidden="true">▶</span>Cijeli album${st.word ? ` <small>„${esc(st.word)}”</small>` : ""}</a>` : ""}
+          ${st.songs.map(t => `<a class="track" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(a.artist + " " + t)}" aria-label="${esc(t)} na YouTubeu"><span class="play" aria-hidden="true">▶</span>${esc(t)}</a>`).join("")}
+        </div>${st.rest ? `<p class="track-rest">${esc(st.rest)}</p>` : ""}</div>` : ""}
       ${a.comments ? `<p class="own-note"><span class="mini-label">Komentar</span>${esc(a.comments)}</p>` : ""}
       ${also.length ? `<div class="also-line">${also.map(o => avatar(o, 18)).join("")}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
       <div class="social">

@@ -47,6 +47,17 @@ function welcomeHtml() {
     <p class="welcome-sign">Zabavite se i vidimo se u tablicama!<br><small>– moderator, Osto</small></p>
   </div>`;
 }
+/** The welcome text as a full page – from the app name or Settings → Pravila i upute. */
+function openRulesPage() {
+  if ($(".rules-page")) return;
+  const r = document.createElement("div");
+  r.className = "overlay rules-page";
+  r.innerHTML = `<div class="sheet"><div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">O aplikaciji</div></div><div class="sheet-body">${welcomeHtml()}</div></div>`;
+  document.body.appendChild(r);
+  const closeR = asPage(r);
+  $$("[data-close]", r).forEach(b => b.addEventListener("click", closeR));
+}
+
 function renderWelcome(onDone) {
   $(".login")?.remove();
   const el = document.createElement("div");
@@ -260,7 +271,7 @@ function openEditor(a = null, prefill = {}) {
         <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="2" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
       </div>
       <div class="step" style="--s:3">
-        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep">
+        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom ili +, a „album!” znači cijeli album</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep">
           <div class="track-chips hide" id="f-track-chips" aria-label="Pjesme s albuma – dodirni za dodavanje"></div></div>
       </div>
       <div class="step" style="--s:4">
@@ -353,7 +364,7 @@ function openEditor(a = null, prefill = {}) {
   };
   // album's tracklist (when found) as tap-to-add chips under "Istaknute pjesme"
   const tracksI = $("#f-tracks", ov), chips = $("#f-track-chips", ov);
-  const picked = () => tracksI.value.split(/\s*[,;]\s*/).map(x => x.trim()).filter(Boolean);
+  const picked = () => tracksI.value.split(/\s*[,;+]\s*/).map(x => x.trim()).filter(Boolean);
   const paintTracks = list => {
     chips.classList.toggle("hide", !list.length);
     if (!list.length) return;
@@ -565,14 +576,7 @@ function openSettings(section) {
     link.href = URL.createObjectURL(blob); link.download = `muzika-backup-${todayIso()}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
   });
-  $("#s-rules", ov).addEventListener("click", () => {
-    const r = document.createElement("div");
-    r.className = "overlay rules-page";
-    r.innerHTML = `<div class="sheet"><div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">Pravila i upute</div></div><div class="sheet-body">${welcomeHtml()}</div></div>`;
-    document.body.appendChild(r);
-    const closeR = asPage(r);
-    $$("[data-close]", r).forEach(b => b.addEventListener("click", closeR));
-  });
+  $("#s-rules", ov).addEventListener("click", () => openRulesPage());
   $("#s-share", ov).addEventListener("click", async () => {
     const url = location.origin + location.pathname + "?tko";
     try { if (navigator.share) { await navigator.share({ title: "Muzika", text: "Upiši što slušaš 🎧", url }); return; } } catch (e) { if (e.name === "AbortError") return; }

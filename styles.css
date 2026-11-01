@@ -1972,3 +1972,24 @@ figure.own blockquote.impression::before { content: none; }
 .month.folded .month-count, .month.folded .month-gear { display: none; }
 .month:not(.folded) .month-count { animation: fadeIn .3s ease both; }
 @media (prefers-reduced-motion: reduce) { .month:not(.folded) .month-count { animation: none; } }
+
+/* ═════════════ v19: app name opens "O aplikaciji", whole-album standouts ═════════════ */
+button.logo { background: none; border: none; padding: 4px 6px; margin: -4px -6px; border-radius: var(--radius-sm); color: inherit; font: inherit; cursor: pointer; transition: opacity .15s, transform .15s var(--ease); }
+button.logo { font-size: 21px; font-weight: 800; letter-spacing: -.5px; }
+button.logo:hover { opacity: .8; }
+button.logo:active { transform: scale(.96); }
+.track.whole { background: color-mix(in srgb, #E62117 12%, var(--sunk)); border-color: color-mix(in srgb, #E62117 35%, transparent); font-weight: 750; }
+.track.whole small { font-weight: 500; opacity: .7; font-size: 11.5px; }
+.track-rest { margin: 6px 0 0; font-size: 13px; color: var(--text-2); font-style: italic; }
+[data-style="film"] button.logo { font-style: italic; font-weight: 400; color: var(--ink); }
+[data-style="pop"] button.logo { text-transform: uppercase; font-weight: 700; }
+[data-style="swiss"] button.logo { font-weight: 700; letter-spacing: -0.02em; }
+[data-style="clear"] button.logo { font-size: 24px; font-weight: 700; min-height: 48px; }
+[data-style="clay"] button.logo { font-size: 23px; font-weight: 800; }
+[data-style="mag"] button.logo { font-family: var(--display); font-weight: 900; font-size: 30px; font-style: italic; }
+[data-style="nature"] button.logo { font-family: Georgia, serif; font-weight: 400; font-size: 24px; color: var(--leaf-ink); letter-spacing: 0; }
+[data-style="vivid"] button.logo { font-weight: 900; font-size: 24px; letter-spacing: -0.03em; background: linear-gradient(90deg, var(--vb-lime), var(--vb-cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-style="pop"] .track.whole { background: var(--nb-yellow); }
+[data-style="vivid"] .card .track.whole { background: #000; color: var(--vb-lime); }
+.rules-page .welcome-hi { display: inline-block; }
+.rules-page .welcome .login-title { display: block; }

@@ -32,7 +32,7 @@ const BG_SETS = {
   nature:  ["🍃", "🌿", "❀", "☘", "🌱", "✿", "🍂", "·"],
   geo:     ["▲", "■", "●", "◆", "✚", "▰", "◢", "⬣"],
   memphis: ["▲", "●", "∿", "✚", "◗", "■", "〰", "◢"],
-  glitch:  ["▮", "▯", "▚", "░", "▒", "⌁", "◧", "▞"],
+  sketch:  ["✎", "☆", "✗", "~", "○", "↗", "✿", "♪"],
   shapes:  ["○", "△", "□", "◇", "✕", "◯", "⬡", "◠"],
   mix:     ["♪", "♫", "✦", "⋆", "☾", "◯", "ʕ•ᴥ•ʔ", "𝄞", "✧"]
 };
@@ -54,13 +54,6 @@ const STYLES = {
     monthColors: ["#2196F3", "#FF80AB", "#4CAF50", "#FFEB3B", "#B2FF59", "#FF9800", "#FF5252", "#18FFFF", "#FFD180", "#FF6E40", "#B388FF", "#82B1FF"],
     bgSet: "shapes", swatch: ["#FFEB3B", "#FF5252", "#2196F3", "#000000"], themeColor: "#FFFBEB"
   },
-  swiss: {
-    name: "Švicarski", desc: "Mreža, Helvetica, tanke linije, crvena", accent: "#DC2626",
-    font: "'Helvetica Neue', Helvetica, Inter, Arial, sans-serif", tint: 0,
-    fontHref: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
-    monthColors: ["#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8"],
-    bgSet: "off", swatch: ["#FFFFFF", "#F5F5F5", "#000000", "#DC2626"], themeColor: "#FFFFFF"
-  },
   clear: {
     name: "Jasno", desc: "Veliki tekst, jak kontrast, lako za dodir", accent: "#1E3A8A",
     font: "'Atkinson Hyperlegible', system-ui, sans-serif", tint: 0,
@@ -75,13 +68,6 @@ const STYLES = {
     fontHref: "https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap",
     monthColors: ["#ADD8E6", "#FFD1DC", "#98FF98", "#E6E6FA", "#B5EAD7", "#FFE5B4", "#FDBCB4", "#C7CEEA", "#FFDAC1", "#E2F0CB", "#F8C8DC", "#CDE7F0"],
     bgSet: "shapes", swatch: ["#FDBCB4", "#ADD8E6", "#98FF98", "#E6E6FA"], themeColor: "#F0E6FA"
-  },
-  mag: {
-    name: "Časopis", desc: "Serifni naslovi, stupci, citati", accent: "#DC2626", display: "'Playfair Display', Georgia, serif",
-    font: "system-ui, 'Helvetica Neue', Arial, sans-serif", tint: 0,
-    fontHref: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap",
-    monthColors: ["#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000"],
-    bgSet: "off", swatch: ["#FFFFFF", "#000000", "#DC2626", "#6B7280"], themeColor: "#FFFFFF"
   },
   nature: {
     name: "Priroda", desc: "Zemljani tonovi, oblutci, valovi", accent: "#228B22",
@@ -102,17 +88,30 @@ const STYLES = {
     monthColors: ["#86CCCA", "#FF71CE", "#FFCE5C", "#4ECDC4", "#FF6B6B", "#6A7BB4", "#FFCE5C", "#FF71CE", "#86CCCA", "#FF6B6B", "#6A7BB4", "#4ECDC4"],
     bgSet: "memphis", swatch: ["#FF71CE", "#FFCE5C", "#86CCCA", "#6A7BB4"], themeColor: "#FFFEF7"
   },
-  glitch: {
-    name: "Glitch", desc: "RGB razdvajanje, VHS, šum", accent: "#00FFFF",
-    font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 10,
-    monthColors: ["#00FFFF", "#FF00FF", "#39FF14", "#FF3B3B", "#4D7CFF", "#FFFF00", "#00FFFF", "#FF00FF", "#39FF14", "#FF3B3B", "#4D7CFF", "#FFFF00"],
-    bgSet: "glitch", swatch: ["#0A0A0A", "#FF0000", "#00FFFF", "#FF00FF"], themeColor: "#0A0A0A"
-  },
   skeu: {
     name: "Koža i drvo", desc: "Koža, drvo, papir, mjedeni zakovci", accent: "#CD853F",
     font: "Georgia, 'Times New Roman', serif", tint: 0,
     monthColors: ["#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E"],
     bgSet: "off", swatch: ["#8B4513", "#DEB887", "#FFFEF9", "#B8860B"], themeColor: "#654321"
+  },
+  eink: {
+    name: "E-papir", desc: "Kao čitač knjiga: papir, tinta, bez animacija", accent: "#1A1A1A",
+    font: "Georgia, 'Iowan Old Style', 'Times New Roman', serif", tint: 0,
+    monthColors: ["#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A"],
+    bgSet: "off", swatch: ["#FDFBF7", "#F5F5F5", "#1A1A1A", "#FFFF00"], themeColor: "#FDFBF7"
+  },
+  raw: {
+    name: "Skica", desc: "Rukom crtano, kraft papir, nesavršeno", accent: "#8B4513",
+    font: "'Patrick Hand', 'Comic Sans MS', cursive, sans-serif", tint: 35,
+    fontHref: "https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap",
+    monthColors: ["#4A6A8A", "#8B4513", "#5E7A3A", "#A0522D", "#6B5B95", "#B5651D", "#8B4513", "#7A5C3E", "#9C6B3F", "#B5562E", "#5A6B7A", "#4A4A4A"],
+    bgSet: "sketch", swatch: ["#FAFAF8", "#C4A77D", "#D4C4A8", "#8B4513"], themeColor: "#FAFAF8"
+  },
+  neu: {
+    name: "Meko", desc: "Neumorfizam: izbočeno i utisnuto, tihi pasteli", accent: "#7B68EE",
+    font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 0,
+    monthColors: ["#8FB8DE", "#E3A5BE", "#9BC9A8", "#B8A9E8", "#E8C27A", "#E8A98B", "#D98C8C", "#7FB5C4", "#C4A07F", "#D49A6A", "#A3A8C8", "#8CB4D8"],
+    bgSet: "off", swatch: ["#E8E8E8", "#C8E0F4", "#F5E0E8", "#7B68EE"], themeColor: "#E8E8E8"
   }
 };
 /** Web fonts are only fetched when someone actually picks a style that needs one. */
@@ -510,7 +509,7 @@ function adoptServerSettings() {
 function applyTheme() {
   const s = state.settings, r = document.documentElement.style;
   const st = style();
-  document.documentElement.dataset.style = s.style;
+  document.documentElement.dataset.style = STYLES[s.style] ? s.style : "default";
   loadStyleFont(st);
   r.setProperty("--accent", s.accent || st.accent);
   r.setProperty("--font", s.font === "auto" ? st.font : FONTS[s.font] || st.font);

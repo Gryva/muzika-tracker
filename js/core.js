@@ -29,36 +29,38 @@ const BG_SETS = {
   kaomoji: ["(◕‿◕)", "ʕ•ᴥ•ʔ", "(｡♥‿♥｡)", "≽^•⩊•^≼", "♪(´▽｀)", "ᕕ( ᐛ )ᕗ", "(ﾉ◕ヮ◕)ﾉ", "( ˘▽˘)っ♨"],
   emoji:   ["🎧", "💿", "🎵", "🎸", "🥁", "🎹", "📻", "🎤", "🎷"],
   film:    ["📼", "🎞", "✶", "◐", "▭", "◉", "⋆", "♪"],
+  nature:  ["🍃", "🌿", "❀", "☘", "🌱", "✿", "🍂", "·"],
+  geo:     ["▲", "■", "●", "◆", "✚", "▰", "◢", "⬣"],
   shapes:  ["○", "△", "□", "◇", "✕", "◯", "⬡", "◠"],
   mix:     ["♪", "♫", "✦", "⋆", "☾", "◯", "ʕ•ᴥ•ʔ", "𝄞", "✧"]
 };
 /** Whole-app looks. Each one brings its own palette, month colours, font and card tint; users can still tweak on top. */
 const STYLES = {
   default: {
-    name: "Midnight", desc: "Dark, neon accents", accent: THEMES.coral, font: FONTS.system, tint: 18,
+    name: "Ponoć", desc: "Tamno, neonski naglasci", accent: THEMES.coral, font: FONTS.system, tint: 18,
     monthColors: DEFAULT_MONTH_COLORS, bgSet: "notes", swatch: ["#0f0f11", "#ff6b6b", "#6ec6ff"], themeColor: "#0f0f11"
   },
   film: {
-    name: "Retro Film", desc: "Film grain, polaroids, faded colours", accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
+    name: "Retro film", desc: "Filmsko zrno, polaroidi, izblijedjele boje", accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
     monthColors: ["#7A9CA8", "#B98B9E", "#8FA37E", "#E8B4B8", "#A8B26B", "#D9A441", "#C9734F", "#D4A574", "#8B4513", "#B5562E", "#6B7280", "#4A7B7C"],
     bgSet: "film", swatch: ["#F5E6C8", "#D4A574", "#4A7B7C", "#E8B4B8"], themeColor: "#F5E6C8"
   },
   pop: {
-    name: "Neubrutal", desc: "Thick outlines, hard shadows, loud colours", accent: "#FF5252",
+    name: "Neobrutal", desc: "Debeli obrubi, tvrde sjene, glasne boje", accent: "#FF5252",
     font: "'Space Grotesk', system-ui, sans-serif", tint: 100,
     fontHref: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap",
     monthColors: ["#2196F3", "#FF80AB", "#4CAF50", "#FFEB3B", "#B2FF59", "#FF9800", "#FF5252", "#18FFFF", "#FFD180", "#FF6E40", "#B388FF", "#82B1FF"],
     bgSet: "shapes", swatch: ["#FFEB3B", "#FF5252", "#2196F3", "#000000"], themeColor: "#FFFBEB"
   },
   swiss: {
-    name: "Swiss", desc: "Grid, Helvetica, hairlines, red", accent: "#DC2626",
+    name: "Švicarski", desc: "Mreža, Helvetica, tanke linije, crvena", accent: "#DC2626",
     font: "'Helvetica Neue', Helvetica, Inter, Arial, sans-serif", tint: 0,
     fontHref: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
     monthColors: ["#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8", "#DC2626", "#000000", "#1D4ED8"],
     bgSet: "off", swatch: ["#FFFFFF", "#F5F5F5", "#000000", "#DC2626"], themeColor: "#FFFFFF"
   },
   clear: {
-    name: "Clear", desc: "Big text, high contrast, easy to tap", accent: "#1E3A8A",
+    name: "Jasno", desc: "Veliki tekst, jak kontrast, lako za dodir", accent: "#1E3A8A",
     font: "'Atkinson Hyperlegible', system-ui, sans-serif", tint: 0,
     fontHref: "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap",
     // every month colour passes 4.5:1 on white, so it can carry text; names are always written out too
@@ -66,18 +68,30 @@ const STYLES = {
     bgSet: "off", swatch: ["#FFFFFF", "#1E3A8A", "#166534", "#F59E0B"], themeColor: "#FFFFFF"
   },
   clay: {
-    name: "Clay", desc: "Soft, chunky, toy-like pastels", accent: "#F4A6B8",
+    name: "Glina", desc: "Mekani, debeljuškasti pasteli", accent: "#F4A6B8",
     font: "'Nunito', system-ui, sans-serif", tint: 100,
     fontHref: "https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap",
     monthColors: ["#ADD8E6", "#FFD1DC", "#98FF98", "#E6E6FA", "#B5EAD7", "#FFE5B4", "#FDBCB4", "#C7CEEA", "#FFDAC1", "#E2F0CB", "#F8C8DC", "#CDE7F0"],
     bgSet: "shapes", swatch: ["#FDBCB4", "#ADD8E6", "#98FF98", "#E6E6FA"], themeColor: "#F0E6FA"
   },
   mag: {
-    name: "Magazine", desc: "Serif headlines, columns, pull quotes", accent: "#DC2626", display: "'Playfair Display', Georgia, serif",
+    name: "Časopis", desc: "Serifni naslovi, stupci, citati", accent: "#DC2626", display: "'Playfair Display', Georgia, serif",
     font: "system-ui, 'Helvetica Neue', Arial, sans-serif", tint: 0,
     fontHref: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap",
     monthColors: ["#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000", "#DC2626", "#000000"],
     bgSet: "off", swatch: ["#FFFFFF", "#000000", "#DC2626", "#6B7280"], themeColor: "#FFFFFF"
+  },
+  nature: {
+    name: "Priroda", desc: "Zemljani tonovi, oblutci, valovi", accent: "#228B22",
+    font: "system-ui, -apple-system, 'Segoe UI', sans-serif", display: "Georgia, 'Times New Roman', serif", tint: 22,
+    monthColors: ["#87CEEB", "#6B8E23", "#228B22", "#9ACD32", "#3CB371", "#DAA520", "#CD853F", "#8B4513", "#B8860B", "#A0522D", "#556B2F", "#5F9EA0"],
+    bgSet: "nature", swatch: ["#F5F5DC", "#228B22", "#8B4513", "#87CEEB"], themeColor: "#F5F5DC"
+  },
+  vivid: {
+    name: "Živo", desc: "Neonski blokovi, geometrija, energija", accent: "#39FF14",
+    font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 100,
+    monthColors: ["#00FFFF", "#BF00FF", "#39FF14", "#FFAA00", "#FF1493", "#CCFF00", "#FF7F00", "#FF006E", "#00FFFF", "#FFAA00", "#BF00FF", "#39FF14"],
+    bgSet: "geo", swatch: ["#0D0D0D", "#39FF14", "#BF00FF", "#FF1493"], themeColor: "#0D0D0D"
   }
 };
 /** Web fonts are only fetched when someone actually picks a style that needs one. */
@@ -94,6 +108,7 @@ const DEFAULT_SETTINGS = {
   accent: null,           // null = the style's own accent
   font: "auto",           // auto = the style's own font
   cards: "collapsed",     // collapsed | open
+  monthScale: 1,          // size of month names, 0.7 – 1.5
   tint: null,             // null = the style's tint
   months: {},             // per-month tweaks: { "11": { color, tint, icon, hidden } }
   bg: { on: true, set: "notes", density: 18, speed: 1, opacity: 1, color: "months" },
@@ -136,6 +151,10 @@ const todayIso = () => new Date().toLocaleDateString("sv-SE");
 const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn("localStorage full?", e); } };
 
+/** True for empty cells and filler like "-", "–", "/", "?" that people type to mean "nothing" (no letter or digit in it). */
+const isPlaceholder = v => { const t = String(v ?? "").trim(); return !t ||  !/[\p{L}\p{N}]/u.test(t); };
+const FIELD_KEYS = ["year", "genre", "duration", "listenedDate", "rating", "impression", "standoutTracks", "recommend", "comments"];
+
 /** Must match norm() in google-apps-script.js */
 function norm(v) {
   let s = String(v ?? "").toLowerCase();
@@ -155,10 +174,10 @@ const fmtRating = (v, plus) => v ? (v % 1 ? v.toFixed(1) : String(v)) + (plus ? 
 function timeAgo(ts) {
   if (!ts) return "";
   const s = (Date.now() - ts) / 1000;
-  if (s < 60) return "now";
-  if (s < 3600) return Math.floor(s / 60) + "m";
-  if (s < 86400) return Math.floor(s / 3600) + "h";
-  if (s < 86400 * 7) return Math.floor(s / 86400) + "d";
+  if (s < 60) return "sad";
+  if (s < 3600) return Math.floor(s / 60) + " min";
+  if (s < 86400) return Math.floor(s / 3600) + " h";
+  if (s < 86400 * 7) return Math.floor(s / 86400) + " d";
   return new Date(ts).toLocaleDateString("hr-HR", { day: "numeric", month: "short" });
 }
 function fmtDate(d) {
@@ -186,7 +205,7 @@ async function parseApi(res) {
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); }
-  catch (e) { throw new ApiError("Backend didn't return JSON – is the Apps Script deployed with access 'Anyone'?"); }
+  catch (e) { throw new ApiError("Poslužitelj nije vratio JSON – je li Apps Script objavljen s pristupom 'Anyone'?"); }
   if (data.success === false || data.error) throw new ApiError(data.error || "API error");
   return data;
 }
@@ -244,7 +263,7 @@ async function flush() {
       } catch (e) {
         if (isNetworkError(e)) { state.online = false; break; }
         console.error("Write rejected", op, e);
-        toast("⚠️ " + (op.label || "Change") + " failed: " + e.message, 5000);
+        toast("⚠️ " + (op.label || "Promjena") + " nije uspjela: " + e.message, 5000);
         op.done = true; op.failed = true; op.doneAt = Date.now();
       }
       saveOutbox();
@@ -307,6 +326,11 @@ function applyPending(snap, outbox) {
       }
     }
   }
+  // Sheet placeholders like "-", "/", "?" mean "nothing here": drop such rows, blank such fields
+  v.albums = v.albums.filter(a => !isPlaceholder(a.artist) && !isPlaceholder(a.album));
+  v.albums.forEach(a => FIELD_KEYS.forEach(k => { if (isPlaceholder(a[k])) a[k] = ""; }));
+  v.listen = v.listen.filter(l => !isPlaceholder(l.artist));
+  v.listen.forEach(l => { if (isPlaceholder(l.album)) l.album = ""; });
   return v;
 }
 
@@ -355,7 +379,7 @@ document.addEventListener("visibilitychange", () => {
   $("#bg").classList.toggle("paused", document.hidden);
   if (!document.hidden && state.me) refresh();
 });
-window.addEventListener("online", () => { state.online = true; toast("🌐 Back online – syncing…"); flush(); refresh(true); });
+window.addEventListener("online", () => { state.online = true; toast("🌐 Opet si na mreži – sinkroniziram…"); flush(); refresh(true); });
 window.addEventListener("offline", () => { state.online = false; setSync(); });
 
 /** Fill in missing album covers in small batches (any open app helps, server de-dupes). */
@@ -379,12 +403,12 @@ function setSync(mode) {
   if (!el) return;
   const pending = state.outbox.filter(o => !o.done).length;
   let cls = "", text = "";
-  if (mode === "busy") { cls = "busy"; text = pending ? `Syncing ${pending}…` : ""; }
-  else if (!state.online) { cls = "off"; text = pending ? `Offline · ${pending} waiting` : "Offline"; }
-  else if (state.lastError) { cls = "err"; text = "Sync problem"; }
-  else if (pending) { cls = "busy"; text = `${pending} waiting`; }
+  if (mode === "busy") { cls = "busy"; text = pending ? `Šaljem ${pending}…` : ""; }
+  else if (!state.online) { cls = "off"; text = pending ? `Izvan mreže · čeka ${pending}` : "Izvan mreže"; }
+  else if (state.lastError) { cls = "err"; text = "Problem sa sinkronizacijom"; }
+  else if (pending) { cls = "busy"; text = `Čeka ${pending}`; }
   el.className = "sync " + cls;
-  el.title = state.lastError || (state.online ? "Synced with Google Sheets" : "Offline – changes are saved on this device");
+  el.title = state.lastError || (state.online ? "Usklađeno s Google tablicom" : "Izvan mreže – promjene su spremljene na uređaju");
   el.innerHTML = `<i></i>${esc(text)}`;
 }
 
@@ -423,7 +447,7 @@ function saveSettings() {
   applyTheme();
   if (!canWrite()) return;
   clearTimeout(settingsSyncTimer);
-  settingsSyncTimer = setTimeout(() => queue({ action: "updateUser", name: state.me, settings: state.settings }, "Settings sync"), 1500);
+  settingsSyncTimer = setTimeout(() => queue({ action: "updateUser", name: state.me, settings: state.settings }, "Sinkronizacija postavki"), 1500);
 }
 /** Another device saved newer settings for me -> use them. */
 function adoptServerSettings() {
@@ -443,6 +467,7 @@ function applyTheme() {
   r.setProperty("--accent", s.accent || st.accent);
   r.setProperty("--font", s.font === "auto" ? st.font : FONTS[s.font] || st.font);
   r.setProperty("--tint", (s.tint ?? st.tint) + "%");
+  r.setProperty("--month-scale", s.monthScale || 1);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", st.themeColor);
   renderBg();
 }
@@ -504,12 +529,12 @@ function computeNotifs() {
   for (const a of v.albums) {
     if (!isNew(a)) continue;
     let extra = "";
-    if (myNks.has(a.nk)) extra = "✨ You listened to this too";
-    const fromMe = v.listen.find(l => l.forUser === a.owner && l.addedBy === a.owner && l.note === `from ${me}` && listenDone(l) === a);
-    if (fromMe) extra = "🎧 Found it in your table!";
+    if (myNks.has(a.nk)) extra = "✨ I ti si ovo slušao/la";
+    const fromMe = v.listen.find(l => l.forUser === a.owner && l.addedBy === a.owner && (l.note === `od ${me}` || l.note === `from ${me}`) && listenDone(l) === a);
+    if (fromMe) extra = "🎧 Našao/la u tvojoj tablici!";
     const sug = mySuggestions.find(l => l.forUser === a.owner && listenDone(l) === a);
-    if (sug) extra = "🎯 Your suggestion!";
-    out.push({ type: "album", ts: a.created || v.serverTime, user: a.owner, key: a.key, html: `<b>${esc(a.owner)}</b> added <b>${title(a)}</b>`, extra });
+    if (sug) extra = "🎯 Tvoj prijedlog!";
+    out.push({ type: "album", ts: a.created || v.serverTime, user: a.owner, key: a.key, html: `<b>${esc(a.owner)}</b> je dodao/la <b>${title(a)}</b>`, extra });
   }
   for (const c of v.comments) {
     if (c.author === me || c.ts <= seen) continue;
@@ -517,18 +542,18 @@ function computeNotifs() {
     if (!a || (a.owner !== me && !iCommented.has(c.key))) continue;
     const short = c.text.length > 70 ? c.text.slice(0, 70) + "…" : c.text;
     out.push({ type: "comment", ts: c.ts, user: c.author, key: c.key,
-      html: `<b>${esc(c.author)}</b> commented on ${a.owner === me ? "your" : esc(a.owner) + "'s"} <b>${esc(a.album)}</b>`, extra: "“" + esc(short) + "”" });
+      html: `<b>${esc(c.author)}</b> komentira ${a.owner === me ? "tvoj album" : "album (" + esc(a.owner) + ")"} <b>${esc(a.album)}</b>`, extra: "“" + esc(short) + "”" });
   }
   for (const r of v.reactions) {
     if (r.user === me || r.ts <= seen) continue;
     const a = D.byKey.get(r.key);
     if (!a || a.owner !== me) continue;
-    out.push({ type: "reaction", ts: r.ts, user: r.user, key: r.key, html: `<b>${esc(r.user)}</b> reacted ${r.emoji} to <b>${esc(a.album)}</b>` });
+    out.push({ type: "reaction", ts: r.ts, user: r.user, key: r.key, html: `<b>${esc(r.user)}</b> reagira ${r.emoji} na <b>${esc(a.album)}</b>` });
   }
   for (const l of v.listen) {
     if (l.forUser !== me || l.addedBy === me || l.ts <= Math.max(seen, lsGet("muzika_lseen_" + me, 0))) continue;
     out.push({ type: "listen", ts: l.ts, user: l.addedBy, listenId: l.id,
-      html: `<b>${esc(l.addedBy)}</b> thinks you should hear <b>${esc([l.artist, l.album].filter(Boolean).join(" – "))}</b>`, extra: l.note ? esc(l.note) : "" });
+      html: `<b>${esc(l.addedBy)}</b> misli da trebaš čuti <b>${esc([l.artist, l.album].filter(Boolean).join(" – "))}</b>`, extra: l.note ? esc(l.note) : "" });
   }
   return out.sort((a, b) => b.ts - a.ts);
 }

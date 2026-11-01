@@ -37,8 +37,8 @@ function linksMenuHtml(a) {
     ["am", "", "Apple Music", a.apple, "https://music.apple.com/search?term=" + q],
     ["dz", "", "Deezer", a.deezer, "https://www.deezer.com/search/" + q + "/album"]
   ].filter(([, , , url], i) => url || i < 2);
-  return `<div class="links-menu" role="menu" aria-label="Listen to ${esc(a.album)}">${opts.map(([cls, ic, name, url, search]) =>
-    `<a role="menuitem" class="link ${cls}" target="_blank" rel="noopener" href="${esc(url || search)}">${ic}<span>${name}</span><small>${url ? "open" : "search"}</small></a>`).join("")}</div>`;
+  return `<div class="links-menu" role="menu" aria-label="Poslušaj ${esc(a.album)}">${opts.map(([cls, ic, name, url, search]) =>
+    `<a role="menuitem" class="link ${cls}" target="_blank" rel="noopener" href="${esc(url || search)}">${ic}<span>${name}</span><small>${url ? "otvori" : "traži"}</small></a>`).join("")}</div>`;
 }
 
 // ═══════════════ header + tabs ═══════════════
@@ -50,9 +50,9 @@ function renderHeader() {
       <div class="logo">Muzika</div>
       <span class="sync" id="sync"></span>
       <div class="spacer"></div>
-      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Activity" aria-label="Activity${n ? ` (${n} new)` : ""}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
-      ${canWrite() ? `<button class="btn btn-ghost btn-icon btn-me" id="btn-settings" title="Settings & profile" aria-label="Settings and profile">${avatar(state.me, 34)}</button>`
-        : `<button class="btn btn-ghost btn-icon" id="btn-settings" title="Settings" aria-label="Settings">⚙️</button><button class="btn btn-ghost btn-sm" id="btn-login">Log in</button>`}
+      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Aktivnost" aria-label="Aktivnost${n ? ` (${n} novo)` : ""}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
+      ${canWrite() ? `<button class="btn btn-ghost btn-icon btn-me" id="btn-settings" title="Postavke i profil" aria-label="Postavke i profil">${avatar(state.me, 34)}</button>`
+        : `<button class="btn btn-ghost btn-icon" id="btn-settings" title="Postavke" aria-label="Postavke">⚙️</button><button class="btn btn-ghost btn-sm" id="btn-login">Prijava</button>`}
     </div>`;
   setSync();
   $("#btn-settings").addEventListener("click", () => openSettings());
@@ -70,7 +70,7 @@ function renderFab() {
   if (!d) {
     d = document.createElement("div");
     d.id = "dock"; d.className = "dock";
-    d.innerHTML = `<button class="dock-btn" id="fab" aria-label="Add album"><span class="dock-plus" aria-hidden="true">＋</span>Add album</button>`;
+    d.innerHTML = `<button class="dock-btn" id="fab" aria-label="Dodaj album"><span class="dock-plus" aria-hidden="true">＋</span>Dodaj album</button>`;
     $("#fab", d).addEventListener("click", () => openEditor());
     document.body.appendChild(d);
   }
@@ -91,18 +91,18 @@ function renderTabs() {
   const cur = state.tab;
   const mineAlbums = cur === "listen" ? [] : v.albums.filter(a => a.owner === cur);
   const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}`;
-  const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span>Listen list`
-    : `${avatar(cur, 26)}${isMe(cur) ? "My table" : esc(cur)}`;
+  const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span>Za slušanje`
+    : `${avatar(cur, 26)}${isMe(cur) ? "Moja tablica" : esc(cur)}`;
   t.innerHTML = `
     <div class="who">
       <button class="who-btn" id="who-btn" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
-        ${label}${anyNew ? `<i class="dot" aria-label="New activity"></i>` : ""}<span class="chev" aria-hidden="true"></span>
+        ${label}${anyNew ? `<i class="dot" aria-label="Nova aktivnost"></i>` : ""}<span class="chev" aria-hidden="true"></span>
       </button>
       <span class="who-stats">${stats}</span>
     </div>
     <div class="who-menu ${state.whoOpen ? "open" : ""}" id="who-menu" ${state.whoOpen ? "" : "hidden"}>
-      ${order.map(n => `<button class="who-item ${cur === n ? "active" : ""}" data-tab="${esc(n)}">${avatar(n, 30)}<span>${isMe(n) ? "Me" : esc(n)}</span><small>${count(n)}</small>${hasNew(n) && cur !== n ? `<i class="dot"></i>` : ""}</button>`).join("")}
-      <button class="who-item ${cur === "listen" ? "active" : ""}" data-tab="listen"><span class="av who-ll" style="--sz:30px">🎧</span><span>Listen list</span>${listenNew ? `<i class="dot"></i>` : ""}</button>
+      ${order.map(n => `<button class="who-item ${cur === n ? "active" : ""}" data-tab="${esc(n)}">${avatar(n, 30)}<span>${isMe(n) ? "Ja" : esc(n)}</span><small>${count(n)}</small>${hasNew(n) && cur !== n ? `<i class="dot"></i>` : ""}</button>`).join("")}
+      <button class="who-item ${cur === "listen" ? "active" : ""}" data-tab="listen"><span class="av who-ll" style="--sz:30px">🎧</span><span>Za slušanje</span>${listenNew ? `<i class="dot"></i>` : ""}</button>
     </div>`;
   $("#who-btn", t).addEventListener("click", e => { e.stopPropagation(); state.whoOpen = !state.whoOpen; renderTabs(); if (state.whoOpen) $(".who-item.active", t)?.focus(); });
   $$(".who-item", t).forEach(b => b.addEventListener("click", e => {
@@ -125,7 +125,7 @@ function renderMain() {
   const v = state.view;
   if (!v) {
     main.innerHTML = state.loading ? `<div class="spinner"></div>` :
-      `<div class="empty"><div class="empty-icon">🔗</div>Can't reach the Google Sheet.<br><small>${esc(state.lastError)}</small></div>`;
+      `<div class="empty"><div class="empty-icon">🔗</div>Ne mogu doći do Google tablice.<br><small>${esc(state.lastError)}</small></div>`;
     return;
   }
   // keep focus + text in a comment box across re-renders
@@ -151,7 +151,7 @@ function renderList() {
   const albums = sortAlbums(v.albums.filter(a => a.owner === state.tab));
 
   if (!albums.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${canWrite() && state.tab === state.me ? "Nothing yet – tap ＋ to add your first album" : "No albums yet"}</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${canWrite() && state.tab === state.me ? "Još ništa – dodaj prvi album gumbom dolje" : "Još nema albuma"}</div>`;
     return;
   }
   let html = "", month = -1, i = 0;
@@ -165,11 +165,11 @@ function renderList() {
       html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
         <header class="month-head">
           <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
-          <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Show" : "Hide"} ${name}">
-            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="${counts[month]} albums">${counts[month]}</span>
+          <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Prikaži" : "Sakrij"}: ${name}">
+            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="Albuma: ${counts[month]}">${counts[month]}</span>
           </button>
           <span class="month-rule" aria-hidden="true"></span>
-          <button class="month-gear" data-act="month-style" aria-label="Style ${name}" title="Style ${name}">⚙︎</button>
+          <button class="month-gear" data-act="month-style" aria-label="Uredi izgled: ${name}" title="Uredi izgled: ${name}">⚙︎</button>
         </header><div class="album-list">`;
     }
     if (!monthPref(month).hidden) html += cardHtml(a, i++);
@@ -190,7 +190,7 @@ const cardOpen = a => state.settings.cards === "open" ? !state.openCards.has(a.k
 function scoreHtml(r) {
   if (!r) return "";
   const p = parseRating(r);
-  return `<span class="score" title="Rating ${esc(r)}">★ <b>${esc(p ? fmtRating(p.v, p.plus) : r)}</b></span>`;
+  return `<span class="score" title="Ocjena ${esc(r)}">★ <b>${esc(p ? fmtRating(p.v, p.plus) : r)}</b></span>`;
 }
 
 function cardHtml(a, i) {
@@ -207,12 +207,12 @@ function cardHtml(a, i) {
     a.year && esc(String(a.year).replace(/\.$/, "")),
     a.genre && esc(a.genre),
     a.duration && esc(a.duration),
-    a.listenedDate && "heard " + esc(fmtDate(a.listenedDate))
+    a.listenedDate && "slušano " + esc(fmtDate(a.listenedDate))
   ].filter(Boolean);
   const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
   const rows = [
-    tracks && ["🎵", "Standouts", esc(tracks)],
-    a.comments && ["📝", "Note", esc(a.comments)]
+    tracks && ["🎵", "Istaknute pjesme", esc(tracks)],
+    a.comments && ["📝", "Bilješka", esc(a.comments)]
   ].filter(Boolean);
   // when open, the quick facts move up into the card's head; the body keeps the words
   const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}</div>` : "";
@@ -220,15 +220,15 @@ function cardHtml(a, i) {
 
   return `
   <article class="card ${fresh ? "enter fade-in" : ""} ${a.pending ? "pending" : ""} ${expanded ? "open" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--tint:${monthTint(a.month)};--i:${Math.min(i, 12)}">
-    <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "collapse" : "expand"}">
+    <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "zatvori" : "otvori"}">
       <div class="card-main">
         <div class="artist">${esc(a.artist)}</div>
-        <div class="album-name">${esc(a.album)}${isNew(a) ? ` <span class="new-pill tag">NEW</span>` : ""}${a.pending ? ` <span class="pending-pill" title="Saved on this device, waiting to sync">⏳</span>` : ""}</div>
+        <div class="album-name">${esc(a.album)}${isNew(a) ? ` <span class="new-pill tag">NOVO</span>` : ""}${a.pending ? ` <span class="pending-pill" title="Spremljeno na uređaju, čeka sinkronizaciju">⏳</span>` : ""}</div>
         ${headFacts}
       </div>
       <div class="peek">
-        ${also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}
-        ${!expanded && cmts.length ? `<span class="peek-c" title="${cmts.length} comment${cmts.length === 1 ? "" : "s"}">💬${cmts.length}</span>` : ""}
+        ${also.length ? `<span class="av-stack" title="Slušali i: ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}
+        ${!expanded && cmts.length ? `<span class="peek-c" title="Komentara: ${cmts.length}">💬${cmts.length}</span>` : ""}
         ${scoreHtml(a.rating)}
         <span class="chev" aria-hidden="true"></span>
       </div>
@@ -236,20 +236,20 @@ function cardHtml(a, i) {
     ${expanded ? `<div class="card-more">
       ${a.impression ? `<blockquote class="impression">${esc(a.impression)}</blockquote>` : ""}
       ${rows.length ? `<ul class="details">${rows.map(([ic, k, v]) => `<li><span class="d-ic" aria-hidden="true">${ic}</span><span class="sr">${k}: </span>${v}</li>`).join("")}</ul>` : ""}
-      ${also.length ? `<div class="also-line">${avatar(also[0], 18)}<span>Also in ${esc(also.join(", "))}'s table</span></div>` : ""}
+      ${also.length ? `<div class="also-line">${avatar(also[0], 18)}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
       <div class="social">
         ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}" aria-label="${e} ${us.length}">${e}<small>${us.length}</small></button>`).join("")}
         ${canWrite() ? (state.pickerFor === a.key
-          ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}" aria-label="React ${e}">${e}</button>`).join("")}</span>`
-          : `<button class="rx" data-act="picker" title="React" aria-label="Add reaction">☺︎<small>+</small></button>`) : ""}
-        <button class="rx ${open ? "mine" : ""}" data-act="thread" aria-expanded="${open}" aria-label="Comments (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
+          ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}" aria-label="Reagiraj ${e}">${e}</button>`).join("")}</span>`
+          : `<button class="rx" data-act="picker" title="Reagiraj" aria-label="Dodaj reakciju">☺︎<small>+</small></button>`) : ""}
+        <button class="rx ${open ? "mine" : ""}" data-act="thread" aria-expanded="${open}" aria-label="Komentari (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
         <span class="grow"></span>
-        <button class="rx ${state.linksFor === a.key ? "mine" : ""}" data-act="links" aria-expanded="${state.linksFor === a.key}" aria-label="Listen on…">🎧<small>Listen</small></button>
-        ${canWrite() ? `<button class="rx more-btn ${moreOpen ? "mine" : ""}" data-act="more" aria-expanded="${moreOpen}" aria-label="More actions">⋯</button>` : ""}
+        <button class="rx ${state.linksFor === a.key ? "mine" : ""}" data-act="links" aria-expanded="${state.linksFor === a.key}" aria-label="Poslušaj na…">🎧<small>Poslušaj</small></button>
+        ${canWrite() ? `<button class="rx more-btn ${moreOpen ? "mine" : ""}" data-act="more" aria-expanded="${moreOpen}" aria-label="Još radnji">⋯</button>` : ""}
       </div>
       ${moreOpen ? `<div class="more-menu" role="menu">
-        ${mine ? `<button role="menuitem" data-act="edit">✏️ Edit</button><button role="menuitem" class="danger" data-act="delete">🗑️ Delete</button>`
-          : `<button role="menuitem" data-act="listen-me">🎧 Add to my listen list</button>`}
+        ${mine ? `<button role="menuitem" data-act="edit">✏️ Uredi</button><button role="menuitem" class="danger" data-act="delete">🗑️ Obriši</button>`
+          : `<button role="menuitem" data-act="listen-me">🎧 Dodaj na moju listu za slušanje</button>`}
       </div>` : ""}
       ${state.linksFor === a.key ? linksMenuHtml(a) : ""}
       ${open ? threadHtml(a, cmts) : ""}
@@ -261,10 +261,10 @@ function threadHtml(a, cmts) {
   return `<div class="thread">
     ${cmts.map(c => `<div class="cmt">${avatar(c.author, 26)}<div class="cmt-body">
         <div class="cmt-head"><b>${esc(c.author)}</b><span>${c.pending ? "⏳" : timeAgo(c.ts)}</span>
-          ${isMe(c.author) ? `<button class="cmt-del" data-act="uncomment" data-id="${esc(c.id)}" title="Delete">✕</button>` : ""}</div>
+          ${isMe(c.author) ? `<button class="cmt-del" data-act="uncomment" data-id="${esc(c.id)}" title="Obriši" aria-label="Obriši komentar">✕</button>` : ""}</div>
         <div class="cmt-text">${esc(c.text)}</div></div></div>`).join("")}
-    ${!cmts.length ? `<div class="hint">No comments yet${canWrite() ? " – say something nice 💬" : ""}</div>` : ""}
-    ${canWrite() ? `<div class="cmt-form">${avatar(state.me, 26)}<input data-cmt="${esc(a.key)}" placeholder="Write a comment…" maxlength="1000" enterkeyhint="send"><button class="btn btn-primary btn-sm" data-act="send">Send</button></div>` : ""}
+    ${!cmts.length ? `<div class="hint">Još nema komentara${canWrite() ? " – reci nešto lijepo 💬" : ""}</div>` : ""}
+    ${canWrite() ? `<div class="cmt-form">${avatar(state.me, 26)}<input data-cmt="${esc(a.key)}" placeholder="Napiši komentar…" aria-label="Napiši komentar" maxlength="1000" enterkeyhint="send"><button class="btn btn-primary btn-sm" data-act="send">Pošalji</button></div>` : ""}
   </div>`;
 }
 
@@ -291,7 +291,7 @@ document.addEventListener("click", e => {
   } else if (act === "react" && a && canWrite()) {
     const on = !(D.reactions.get(a.key) || []).some(r => r.user === state.me && r.emoji === btn.dataset.emoji);
     state.pickerFor = null;
-    queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reaction");
+    queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reakcija");
     requestAnimationFrame(() => $(`.card[data-key="${CSS.escape(a.key)}"] .rx[data-emoji="${btn.dataset.emoji}"]`)?.classList.add("pop"));
   } else if (act === "links" && a) {
     state.linksFor = state.linksFor === a.key ? null : a.key; state.moreFor = null; renderList();
@@ -306,7 +306,7 @@ document.addEventListener("click", e => {
   } else if (act === "send" && a) {
     sendComment(a);
   } else if (act === "uncomment") {
-    if (confirm("Delete your comment?")) queue({ action: "uncomment", id: btn.dataset.id, author: state.me }, "Delete comment");
+    if (confirm("Obrisati komentar?")) queue({ action: "uncomment", id: btn.dataset.id, author: state.me }, "Brisanje komentara");
   } else if (act === "edit" && a) {
     state.moreFor = null; renderList(); openEditor(a);
   } else if (act === "delete" && a) {
@@ -314,9 +314,9 @@ document.addEventListener("click", e => {
   } else if (act === "listen-me" && a) {
     state.moreFor = null; renderList();
     const exists = state.view.listen.some(l => l.forUser === state.me && (l.nk || normKey(l.artist, l.album)) === a.nk);
-    if (exists) return toast("Already on your listen list 🎧");
-    queue({ action: "listenAdd", id: uid(), forUser: state.me, artist: a.artist, album: a.album, addedBy: state.me, note: `from ${a.owner}`, ts: Date.now() }, "Listen list");
-    toast("Added to your listen list 🎧");
+    if (exists) return toast("Već je na tvojoj listi za slušanje 🎧");
+    queue({ action: "listenAdd", id: uid(), forUser: state.me, artist: a.artist, album: a.album, addedBy: state.me, note: `od ${a.owner}`, ts: Date.now() }, "Lista za slušanje");
+    toast("Dodano na listu za slušanje 🎧");
   }
 });
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches || state.settings.style === "clear";
@@ -382,12 +382,12 @@ function foldMonth(m) {
   }
 }
 
-/** Month name with its symbol on the left, right or both sides. */
+/** Month name with its symbol on both sides. */
 function monthTitleHtml(m) {
   const mp = monthPref(m), name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
-  const ic = mp.icon ? `<span class="month-icon">${esc(mp.icon)}</span>` : "";
-  const side = mp.iconSide || "left";
-  return `${ic && side !== "right" ? ic : ""}<span class="month-title">${name}</span>${ic && side !== "left" ? ic.replace("month-icon", "month-icon r") : ""}`;
+  if (!mp.icon) return `<span class="month-title">${name}</span>`;
+  const ic = `<span class="month-icon" aria-hidden="true">${esc(mp.icon)}</span>`;
+  return `${ic}<span class="month-title">${name}</span>${ic.replace("month-icon", "month-icon r")}`;
 }
 
 /** Open on the month we're in: its header sits right under the top bars, older months are above. */
@@ -420,18 +420,18 @@ function sendComment(a) {
   const text = input?.value.trim();
   if (!text) return;
   input.value = "";
-  queue({ action: "comment", id: uid(), key: a.key, owner: a.owner, author: state.me, text, ts: Date.now() }, "Comment");
+  queue({ action: "comment", id: uid(), key: a.key, owner: a.owner, author: state.me, text, ts: Date.now() }, "Komentar");
   setTimeout(() => $(`input[data-cmt="${CSS.escape(a.key)}"]`)?.focus({ preventScroll: true }), 0);
 }
 
 function deleteAlbum(a) {
-  if (!confirm(`Delete "${a.artist} – ${a.album}"?\nIt's removed from your Sheet tab (a backup is kept in app_trash).`)) return;
+  if (!confirm(`Obrisati "${a.artist} – ${a.album}"?\nMiče se iz tvoje kartice u tablici (kopija ostaje u app_trash).`)) return;
   if (a.pending && String(a.id).startsWith("tmp_")) {
     state.outbox = state.outbox.filter(o => !(o.payload.action === "add" && "tmp_" + o.payload.clientId === a.id && !o.done));
     saveOutbox(); rebuild(); return;
   }
-  queue({ action: "delete", id: a.id, owner: a.owner, expectArtist: a.artist, expectAlbum: a.album, clientId: uid() }, "Delete");
-  toast("Deleted ✂️");
+  queue({ action: "delete", id: a.id, owner: a.owner, expectArtist: a.artist, expectAlbum: a.album, clientId: uid() }, "Brisanje");
+  toast("Obrisano ✂️");
 }
 
 // ═══════════════ listen list ═══════════════
@@ -448,10 +448,10 @@ function renderListen(main) {
   main.innerHTML = `
     <div class="ll-users">${users().map(u => `<button class="tab ${u.name === who ? "active" : ""}" data-ll="${esc(u.name)}">${avatar(u.name, 20)}${esc(u.name)} <span class="tab-count">${v.listen.filter(l => l.forUser === u.name && !listenDone(l)).length}</span></button>`).join("")}</div>
     ${canWrite() ? `<form class="ll-add" id="ll-form" data-for="${esc(who)}">
-      <input class="fi" name="artist" placeholder="Artist" autocomplete="off" required>
-      <input class="fi" name="album" placeholder="Album (optional)" autocomplete="off">
-      <button class="btn btn-primary">${forMe ? "＋ Add" : "＋ Suggest to " + esc(who)}</button>
-      <input class="fi" name="note" placeholder="${forMe ? "Note to self (optional)" : "Why should they hear it? (optional)"}" style="grid-column:1/-1">
+      <input class="fi" name="artist" placeholder="Izvođač" aria-label="Izvođač" autocomplete="off" required>
+      <input class="fi" name="album" placeholder="Album (nije obavezno)" aria-label="Album" autocomplete="off">
+      <button class="btn btn-primary">${forMe ? "＋ Dodaj" : "＋ Predloži: " + esc(who)}</button>
+      <input class="fi" name="note" placeholder="${forMe ? "Bilješka za sebe (nije obavezno)" : "Zašto bi to trebali čuti? (nije obavezno)"}" aria-label="Bilješka" style="grid-column:1/-1">
     </form>` : ""}
     <div class="ll-list">
       ${items.length ? items.map((l, i) => {
@@ -459,12 +459,12 @@ function renderListen(main) {
         return `<div class="ll-item ${done ? "done" : ""}" style="animation-delay:${Math.min(i, 10) * 30}ms">
           <div class="ll-main">
             <div class="ll-title">${esc(l.artist)}${l.album ? ` <span>– ${esc(l.album)}</span>` : ""}</div>
-            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} suggested · ` : ""}${timeAgo(l.ts)}${l.note ? ` · ${esc(l.note)}` : ""}${done ? ` · ✓ listened${done.rating ? " ★" + esc(done.rating) : ""}` : ""}</div>
+            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} predlaže · ` : ""}${timeAgo(l.ts)}${l.note ? ` · ${esc(l.note)}` : ""}${done ? ` · ✓ poslušano${done.rating ? " ★" + esc(done.rating) : ""}` : ""}</div>
           </div>
-          ${forMe && !done ? `<button class="mini" data-ll-log="${esc(l.id)}">🎧 Log it</button>` : ""}
-          ${canWrite() && (forMe || isMe(l.addedBy)) ? `<button class="mini danger" data-ll-del="${esc(l.id)}" title="Remove">✕</button>` : ""}
+          ${forMe && !done ? `<button class="mini" data-ll-log="${esc(l.id)}">🎧 Upiši</button>` : ""}
+          ${canWrite() && (forMe || isMe(l.addedBy)) ? `<button class="mini danger" data-ll-del="${esc(l.id)}" title="Makni" aria-label="Makni s liste">✕</button>` : ""}
         </div>`;
-      }).join("") : `<div class="empty"><div class="empty-icon">📝</div>${forMe ? "Your listen list is empty.<br>Tap ＋ 🎧 on anyone's album, or add one above." : `Nothing on ${esc(who)}'s list yet.<br>Suggest something!`}</div>`}
+      }).join("") : `<div class="empty"><div class="empty-icon">📝</div>${forMe ? "Tvoja lista za slušanje je prazna.<br>Dodaj album gore ili preko ⋯ na tuđem albumu." : `Lista (${esc(who)}) je još prazna.<br>Predloži nešto!`}</div>`}
     </div>`;
 
   if (keep) Object.entries(keep).forEach(([k, val]) => { const i = $(`#ll-form [name="${k}"]`); if (i) i.value = val; });
@@ -473,10 +473,10 @@ function renderListen(main) {
   $("#ll-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    queue({ action: "listenAdd", id: uid(), forUser: who, artist: f.get("artist").trim(), album: f.get("album").trim(), addedBy: state.me, note: f.get("note").trim(), ts: Date.now() }, "Listen list");
-    toast(forMe ? "Added 🎧" : `Suggested to ${who} 💌`);
+    queue({ action: "listenAdd", id: uid(), forUser: who, artist: f.get("artist").trim(), album: f.get("album").trim(), addedBy: state.me, note: f.get("note").trim(), ts: Date.now() }, "Lista za slušanje");
+    toast(forMe ? "Dodano 🎧" : `Predloženo: ${who} 💌`);
   });
-  $$("[data-ll-del]", main).forEach(b => b.addEventListener("click", () => queue({ action: "listenRemove", id: b.dataset.llDel }, "Listen list")));
+  $$("[data-ll-del]", main).forEach(b => b.addEventListener("click", () => queue({ action: "listenRemove", id: b.dataset.llDel }, "Lista za slušanje")));
   $$("[data-ll-log]", main).forEach(b => b.addEventListener("click", () => {
     const l = v.listen.find(x => x.id === b.dataset.llLog);
     openEditor(null, { artist: l.artist, album: l.album });
@@ -497,9 +497,9 @@ function openPanel() {
   p.className = "panel";
   const n = state.notifs;
   p.innerHTML = `
-    <div class="panel-head">Activity ${n.length ? `<button class="mini" id="mark-read">Mark all read</button>` : ""}</div>
+    <div class="panel-head">Aktivnost ${n.length ? `<button class="mini" id="mark-read">Označi sve pročitanim</button>` : ""}</div>
     ${n.length ? n.map((x, i) => `<div class="notif" data-i="${i}">${avatar(x.user, 32)}<div class="notif-text">${x.html}${x.extra ? `<em>${x.extra}</em>` : ""}</div><time>${timeAgo(x.ts)}</time></div>`).join("")
-      : `<div class="empty" style="padding:30px"><div class="empty-icon">🌙</div>All caught up</div>`}`;
+      : `<div class="empty" style="padding:30px"><div class="empty-icon">🌙</div>Sve si pogledao/la</div>`}`;
   document.body.appendChild(p);
   $("#mark-read", p)?.addEventListener("click", () => closePanel());
   $$(".notif", p).forEach(el => el.addEventListener("click", () => {

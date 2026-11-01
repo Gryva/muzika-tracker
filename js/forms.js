@@ -380,57 +380,6 @@ function openEditor(a = null, prefill = {}) {
   // no automatic keyboard: you see the whole form first and tap where you want to start
 }
 
-// ═══════════════ delete account ═══════════════
-/** Type your own name to confirm. Needs the internet (it's never queued), so nothing half-happens offline. */
-function openDeleteAccount(closeSettings) {
-  const name = state.me;
-  const ov = document.createElement("div");
-  ov.className = "overlay delete-sheet";
-  ov.innerHTML = `<form class="sheet sheet-sm" role="dialog" aria-labelledby="del-title" autocomplete="off">
-    <div class="sheet-header"><div class="sheet-title" id="del-title">Obriši račun</div><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Zatvori">✕</button></div>
-    <div class="sheet-body">
-      <p class="del-lead">Ako obrišeš račun <b>${esc(name)}</b>:</p>
-      <ul class="del-list">
-        <li>nestaješ iz aplikacije – nitko više ne vidi tvoju tablicu</li>
-        <li>brišu se tvoji komentari, reakcije i stavke na listama za slušanje</li>
-        <li>tvoji albumi ostaju samo kao sigurnosna kopija u Google tablici (list <b>„OBRISANO – ${esc(name.toUpperCase())}”</b>), pa ih vlasnik tablice može vratiti ako se predomisliš</li>
-      </ul>
-      <label class="fl" for="del-confirm">Za potvrdu upiši svoje ime: <b>${esc(name)}</b></label>
-      <input class="fi" id="del-confirm" autocapitalize="off" spellcheck="false" placeholder="${esc(name)}" aria-describedby="del-err">
-      <div class="hint warn" id="del-err" aria-live="polite"></div>
-    </div>
-    <div class="form-actions"><button type="button" class="btn btn-ghost" data-close>Odustani</button><button class="btn btn-danger" id="del-go" disabled>Obriši zauvijek</button></div>
-  </form>`;
-  document.body.appendChild(ov);
-  const close = () => { ov.classList.add("closing"); setTimeout(() => ov.remove(), 200); };
-  $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
-  ov.addEventListener("click", e => { if (e.target === ov) close(); });
-  const inp = $("#del-confirm", ov), go = $("#del-go", ov), err = $("#del-err", ov);
-  const ok = () => inp.value.trim().toUpperCase() === name.toUpperCase();
-  inp.addEventListener("input", () => { go.disabled = !ok(); err.textContent = ""; });
-  ov.querySelector("form").addEventListener("submit", async e => {
-    e.preventDefault();
-    if (!ok()) return;
-    if (!state.online) { err.textContent = "Za brisanje računa treba internet."; return; }
-    go.disabled = true; go.textContent = "Brišem…";
-    try {
-      await apiPost({ action: "deleteUser", name, confirm: inp.value.trim() });
-      // forget this account on this device too
-      localStorage.removeItem("muzika_user");
-      localStorage.removeItem("muzika_settings_" + name);
-      state.outbox = state.outbox.filter(o => o.payload?.owner !== name && o.payload?.name !== name); saveOutbox();
-      close(); closeSettings?.();
-      state.me = null; state.tab = null;
-      toast("Račun je obrisan. Hvala na glazbi 🎵", 4000);
-      await refresh(true);
-      renderLogin();
-    } catch (x) {
-      go.disabled = false; go.textContent = "Obriši zauvijek";
-      err.textContent = isNetworkError(x) ? "Nema veze – pokušaj ponovno kad budeš na mreži." : "Nije uspjelo: " + (x.message || x);
-    }
-  });
-}
-
 // ═══════════════ settings ═══════════════
 function openSettings(section) {
   const s = state.settings;
@@ -505,7 +454,6 @@ function openSettings(section) {
       </div>
 
       <button class="link-btn switch-user" id="s-switch">Nisi ${me ? esc(me.name) : "ti"}? Promijeni korisnika</button>
-      ${me && canWrite() ? `<button class="link-btn delete-acc" id="s-delete">Obriši moj račun</button>` : ""}
     </div></div>`;
   document.body.appendChild(ov);
   const close = asPage(ov);
@@ -542,7 +490,6 @@ function openSettings(section) {
   $("#s-share", ov).addEventListener("click", shareApp);
   $("#s-sync", ov).addEventListener("click", () => { flush(); refresh(true); toast("Sinkroniziram…"); });
   $("#s-switch", ov).addEventListener("click", () => { close(); state.me = null; localStorage.removeItem("muzika_user"); renderLogin(); });
-  $("#s-delete", ov)?.addEventListener("click", () => openDeleteAccount(close));
 
   if (me) {
     const setPhoto = async () => {

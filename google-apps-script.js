@@ -694,7 +694,7 @@ function lookupAlbum(artist, album, spotify) {
   artist = String(artist || "").trim(); album = String(album || "").trim();
   var result = null;
   if (artist && album) result = lookupMany([{ artist: artist, album: album }])[0];
-  if (result) result.durationSec = albumDuration(result);
+  if (result) { var det = albumDetails(result); result.durationSec = det.sec; result.tracks = det.tracks.slice(0, 40); }
   var sp = spotifyCover(spotify);
   if (sp) { result = result || {}; result.cover = sp; result.source = "spotify"; }
   if (result && (result.apple || result.deezer || sp)) {
@@ -706,23 +706,30 @@ function lookupAlbum(artist, album, spotify) {
   return result;
 }
 
-/** Total album length in seconds (sum of the tracks), from whichever catalogue matched. */
-function albumDuration(r) {
+/** Total album length in seconds + the track titles, from whichever catalogue matched. */
+function albumDetails(r) {
   try {
     if (r.itunesId) {
       var res = UrlFetchApp.fetch("https://itunes.apple.com/lookup?entity=song&limit=200&id=" + r.itunesId, { muteHttpExceptions: true });
       if (res.getResponseCode() === 200) {
-        var ms = 0;
-        (JSON.parse(res.getContentText()).results || []).forEach(function (t) { if (t.wrapperType === "track") ms += Number(t.trackTimeMillis) || 0; });
-        if (ms) return Math.round(ms / 1000);
+        var ms = 0, names = [];
+        (JSON.parse(res.getContentText()).results || []).forEach(function (t) {
+          if (t.wrapperType !== "track") return;
+          ms += Number(t.trackTimeMillis) || 0;
+          if (t.trackName) names.push(t.trackName);
+        });
+        if (ms) return { sec: Math.round(ms / 1000), tracks: names };
       }
     }
     if (r.deezerId) {
       var res2 = UrlFetchApp.fetch("https://api.deezer.com/album/" + r.deezerId, { muteHttpExceptions: true });
-      if (res2.getResponseCode() === 200) return Number(JSON.parse(res2.getContentText()).duration) || 0;
+      if (res2.getResponseCode() === 200) {
+        var d = JSON.parse(res2.getContentText());
+        return { sec: Number(d.duration) || 0, tracks: ((d.tracks && d.tracks.data) || []).map(function (t) { return t.title; }) };
+      }
     }
   } catch (e) {}
-  return 0;
+  return { sec: 0, tracks: [] };
 }
 
 /**

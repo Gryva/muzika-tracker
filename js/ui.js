@@ -157,11 +157,14 @@ function renderList() {
   let html = "", month = -1, i = 0;
   const counts = {};
   albums.forEach(a => counts[a.month || 0] = (counts[a.month || 0] || 0) + 1);
+  // the month that starts open: this month if it has albums, otherwise the latest one before it
+  const now = new Date().getMonth() + 1, ms = Object.keys(counts).map(Number).filter(Boolean);
+  state.openMonth = ms.includes(now) ? now : Math.max(...ms.filter(x => x <= now), 0) || Math.max(...ms, 0);
   for (const a of albums) {
     if ((a.month || 0) !== month) {
       if (month !== -1) html += `</div></section>`;
       month = a.month || 0;
-      const mp = monthPref(month), name = month ? MONTH_NAMES[month - 1] : "Bez mjeseca";
+      const mp = { ...monthPref(month), hidden: isFolded(month) }, name = month ? MONTH_NAMES[month - 1] : "Bez mjeseca";
       html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
         <header class="month-head">
           <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
@@ -172,7 +175,7 @@ function renderList() {
           <button class="month-gear" data-act="month-style" aria-label="Uredi izgled: ${name}" title="Uredi izgled: ${name}">⚙︎</button>
         </header><div class="album-list">`;
     }
-    if (!monthPref(month).hidden) html += cardHtml(a, i++);
+    if (!isFolded(month)) html += cardHtml(a, i++);
   }
   list.innerHTML = html + `</div></section>`;
   if (state.scrollToEnd) {
@@ -210,10 +213,8 @@ function cardHtml(a, i) {
     a.listenedDate && "slušano " + esc(fmtDate(a.listenedDate))
   ].filter(Boolean);
   const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
-  const rows = [
-    tracks && ["🎵", "Istaknute pjesme", esc(tracks)],
-    a.comments && ["📝", "Bilješka", esc(a.comments)]
-  ].filter(Boolean);
+  // each standout track opens straight on YouTube
+  const trackList = tracks ? tracks.split(/\s*[,;]\s*|\s+\/\s+/).map(t => t.trim()).filter(t => t && !isPlaceholder(t)) : [];
   // when open, the quick facts move up into the card's head; the body keeps the words
   const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}</div>` : "";
   const moreOpen = state.moreFor === a.key;
@@ -234,9 +235,14 @@ function cardHtml(a, i) {
       </div>
     </div>
     ${expanded ? `<div class="card-more">
-      ${a.impression ? `<blockquote class="impression">${esc(a.impression)}</blockquote>` : ""}
-      ${rows.length ? `<ul class="details">${rows.map(([ic, k, v]) => `<li><span class="d-ic" aria-hidden="true">${ic}</span><span class="sr">${k}: </span>${v}</li>`).join("")}</ul>` : ""}
-      ${also.length ? `<div class="also-line">${avatar(also[0], 18)}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
+      ${a.impression ? `<figure class="own">
+        <figcaption>${avatar(a.owner, 18)}<span>Dojam${isMe(a.owner) ? "" : " · " + esc(a.owner)}</span></figcaption>
+        <blockquote class="impression">${esc(a.impression)}</blockquote>
+      </figure>` : ""}
+      ${trackList.length ? `<div class="tracks-row"><span class="mini-label">Istaknute pjesme</span>
+        <div class="track-links">${trackList.map(t => `<a class="track" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(a.artist + " " + t)}" aria-label="${esc(t)} na YouTubeu"><span class="play" aria-hidden="true">▶</span>${esc(t)}</a>`).join("")}</div></div>` : ""}
+      ${a.comments ? `<p class="own-note"><span class="mini-label">Komentar</span>${esc(a.comments)}</p>` : ""}
+      ${also.length ? `<div class="also-line">${also.map(o => avatar(o, 18)).join("")}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
       <div class="social">
         ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}" aria-label="${e} ${us.length}">${e}<small>${us.length}</small></button>`).join("")}
         ${canWrite() ? (state.pickerFor === a.key
@@ -257,15 +263,17 @@ function cardHtml(a, i) {
   </article>`;
 }
 
+/** Other people's comments: their own quiet section, clearly apart from the owner's impression. */
 function threadHtml(a, cmts) {
-  return `<div class="thread">
-    ${cmts.map(c => `<div class="cmt">${avatar(c.author, 26)}<div class="cmt-body">
+  return `<section class="thread" aria-label="Komentari">
+    <div class="thread-head"><span class="mini-label">Komentari${cmts.length ? ` · ${cmts.length}` : ""}</span></div>
+    ${cmts.map(c => `<div class="cmt">${avatar(c.author, 24)}<div class="cmt-body">
         <div class="cmt-head"><b>${esc(c.author)}</b><span>${c.pending ? "⏳" : timeAgo(c.ts)}</span>
           ${isMe(c.author) ? `<button class="cmt-del" data-act="uncomment" data-id="${esc(c.id)}" title="Obriši" aria-label="Obriši komentar">✕</button>` : ""}</div>
         <div class="cmt-text">${esc(c.text)}</div></div></div>`).join("")}
-    ${!cmts.length ? `<div class="hint">Još nema komentara${canWrite() ? " – reci nešto lijepo 💬" : ""}</div>` : ""}
-    ${canWrite() ? `<div class="cmt-form">${avatar(state.me, 26)}<input data-cmt="${esc(a.key)}" placeholder="Napiši komentar…" aria-label="Napiši komentar" maxlength="1000" enterkeyhint="send"><button class="btn btn-primary btn-sm" data-act="send">Pošalji</button></div>` : ""}
-  </div>`;
+    ${!cmts.length ? `<div class="hint">Još nema komentara${canWrite() ? " – reci nešto lijepo" : ""}</div>` : ""}
+    ${canWrite() ? `<div class="cmt-form"><input data-cmt="${esc(a.key)}" placeholder="Napiši komentar…" aria-label="Napiši komentar" maxlength="1000" enterkeyhint="send"><button class="btn btn-primary btn-sm" data-act="send">Pošalji</button></div>` : ""}
+  </section>`;
 }
 
 // ═══════════════ card actions (event delegation) ═══════════════
@@ -365,7 +373,7 @@ function foldMonth(m) {
   const s = state.settings;
   const sec = $(`.month[data-month="${m}"]`), list = sec && $(".album-list", sec);
   const set = hidden => { s.months[m] = { ...(s.months[m] || {}), hidden }; saveSettings(); };
-  const hide = !monthPref(m).hidden;
+  const hide = !isFolded(m);
   if (calm() || !list) { set(hide); return renderList(); }
   if (hide) {
     list.style.overflow = "hidden";
@@ -380,6 +388,12 @@ function foldMonth(m) {
     l2.style.overflow = "hidden";
     l2.animate([{ height: "0px" }, { height: l2.offsetHeight + "px" }], { duration: 320, easing: EASE }).onfinish = () => { l2.style.overflow = ""; };
   }
+}
+
+/** Months start folded, except the one we're in; once you open or fold one yourself, that sticks. */
+function isFolded(m) {
+  const h = monthPref(m).hidden;
+  return h === undefined ? m !== state.openMonth : !!h;
 }
 
 /** Month name with its symbol on both sides. */
@@ -522,7 +536,7 @@ function jumpTo(key, openThread) {
   state.tab = a.owner;
   if (openThread) state.openThreads.add(key);
   if (!cardOpen(a)) toggleCard(a);
-  if (monthPref(a.month).hidden) { state.settings.months[a.month].hidden = false; saveSettings(); }
+  if (isFolded(a.month)) { state.settings.months[a.month] = { ...(state.settings.months[a.month] || {}), hidden: false }; saveSettings(); }
   renderTabs(); renderMain();
   const el = $(`.card[data-key="${CSS.escape(key)}"]`);
   if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("enter"); el.classList.add("flash"); }

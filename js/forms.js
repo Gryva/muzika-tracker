@@ -190,7 +190,6 @@ function openEditor(a = null, prefill = {}) {
   ov.className = "overlay editor";
   const recOpts = ["Da", "Ne", "Meh"];
   if (f.recommend && !recOpts.includes(f.recommend)) recOpts.push(f.recommend);
-  const hasMore = editing && (a.year || a.genre || a.duration || a.standoutTracks || a.comments);
   ov.innerHTML = `<form class="sheet" autocomplete="off" aria-label="${editing ? "Uredi album" : "Novi album"}">
     <div class="sheet-header"><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Zatvori">✕</button></div>
     <div class="sheet-body">
@@ -198,26 +197,31 @@ function openEditor(a = null, prefill = {}) {
         <div class="fg"><label class="fl" for="f-artist">Izvođač</label><input class="fi fi-big" id="f-artist" value="${esc(src.artist || "")}" placeholder="npr. Pink Floyd" required></div>
         <div class="fg"><label class="fl" for="f-album">Album</label><input class="fi fi-big" id="f-album" value="${esc(src.album || "")}" placeholder="npr. Animals" required></div>
         <div class="hint hide" id="f-also"></div>
-        <div class="hint found" id="f-found" aria-live="polite"></div>
       </div>
       <div class="step" style="--s:1">
         <div class="fg"><label class="fl">Ocjena</label><div id="f-rating"></div></div>
       </div>
       <div class="step" style="--s:2">
-        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o)}</button>`).join("")}</div></div>
+        <div class="fg"><label class="fl" for="f-impression">Dojam albuma</label><textarea class="ft" id="f-impression" rows="2" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
       </div>
       <div class="step" style="--s:3">
-        <div class="fg"><label class="fl" for="f-impression">Dojam</label><textarea class="ft" id="f-impression" placeholder="Kakav ti je bio?">${esc(a?.impression || "")}</textarea></div>
+        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme <small>– odvoji zarezom</small></label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep">
+          <div class="track-chips hide" id="f-track-chips" aria-label="Pjesme s albuma – dodirni za dodavanje"></div></div>
       </div>
-      <details class="group more step" style="--s:4" ${hasMore ? "open" : ""}><summary>Više detalja <small>– datum, godina, žanr, pjesme…</small></summary>
-        <div class="row3">
-          <div class="fg"><label class="fl" for="f-date">Slušano</label><input type="date" class="fi" id="f-date" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
+      <div class="step" style="--s:4">
+        <div class="fg"><label class="fl">Preporučaš?</label><div class="choice" id="f-rec">${recOpts.map(o => `<button type="button" data-v="${esc(o)}" class="${f.recommend === o ? "on" : ""}">${o === "Da" ? "✅ Da" : o === "Ne" ? "❌ Ne" : o === "Meh" ? "🤷 Meh" : esc(o)}</button>`).join("")}</div></div>
+      </div>
+      <div class="step" style="--s:5">
+        <div class="fg"><label class="fl" for="f-comments">Komentar <small>– stupac „Komentarska sekcija”</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Još nešto?"></div>
+      </div>
+      <details class="group more step" style="--s:6"><summary>Detalji <small class="auto-sum" id="f-auto-sum">popunjavaju se sami</small></summary>
+        <div class="hint found" id="f-found" aria-live="polite"></div>
+        <div class="row2">
+          <div class="fg"><label class="fl" for="f-date">Datum slušanja</label><input type="date" class="fi" id="f-date" value="${editing ? isoDate(a.listenedDate) : todayIso()}"></div>
           <div class="fg"><label class="fl" for="f-year">Godina</label><input class="fi" id="f-year" value="${esc(a?.year || "")}" placeholder="automatski" inputmode="numeric"></div>
           <div class="fg"><label class="fl" for="f-duration">Trajanje</label><input class="fi" id="f-duration" value="${esc(a?.duration || "")}" placeholder="automatski"></div>
+          <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="automatski"></div>
         </div>
-        <div class="fg"><label class="fl" for="f-genre">Žanr</label><input class="fi" id="f-genre" value="${esc(a?.genre || "")}" placeholder="automatski"></div>
-        <div class="fg"><label class="fl" for="f-tracks">Istaknute pjesme</label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
-        <div class="fg"><label class="fl" for="f-comments">Bilješka <small>– ide u stupac s komentarima u tablici</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Još nešto?"></div>
       </details>
     </div>
     <div class="form-actions">
@@ -272,10 +276,37 @@ function openEditor(a = null, prefill = {}) {
       if (r?.spotify || r?.youtube || r?.apple || r?.deezer) got.push("linkove za slušanje");
       found.textContent = got.length ? `✓ Pronađeno: ${got.join(", ")}` : r ? "✓ Pronađeno" : "";
       found.className = "hint found ok";
+      paintTracks(r?.tracks || []);
+      paintSum();
     } catch (e) {
       if (seq === lookupSeq) found.textContent = isNetworkError(e) ? "Izvan mreže – podaci će se popuniti kasnije" : "";
     }
   };
+  // album's tracklist (when found) as tap-to-add chips under "Istaknute pjesme"
+  const tracksI = $("#f-tracks", ov), chips = $("#f-track-chips", ov);
+  const picked = () => tracksI.value.split(/\s*[,;]\s*/).map(x => x.trim()).filter(Boolean);
+  const paintTracks = list => {
+    chips.classList.toggle("hide", !list.length);
+    if (!list.length) return;
+    const have = new Set(picked().map(norm));
+    chips.innerHTML = list.slice(0, 30).map(t => `<button type="button" class="${have.has(norm(t)) ? "on" : ""}" data-t="${esc(t)}">${esc(t)}</button>`).join("");
+    $$("button", chips).forEach(b => b.addEventListener("click", () => {
+      const t = b.dataset.t, cur = picked();
+      const i = cur.findIndex(x => norm(x) === norm(t));
+      i >= 0 ? cur.splice(i, 1) : cur.push(t);
+      tracksI.value = cur.join(", ");
+      b.classList.toggle("on", i < 0);
+    }));
+  };
+  tracksI.addEventListener("input", () => { const have = new Set(picked().map(norm)); $$("button", chips).forEach(b => b.classList.toggle("on", have.has(norm(b.dataset.t)))); });
+  // one-line summary of the automatic details, so the section can stay closed
+  const paintSum = () => {
+    const d = $("#f-date", ov).value, parts = [d && fmtDate(d), $("#f-year", ov).value, $("#f-duration", ov).value, $("#f-genre", ov).value].filter(Boolean);
+    $("#f-auto-sum", ov).textContent = parts.length ? parts.join(" · ") : "popunjavaju se sami";
+  };
+  ["#f-date", "#f-year", "#f-duration", "#f-genre"].forEach(id => $(id, ov).addEventListener("input", paintSum));
+  paintSum();
+
   let lt;
   const onNameChange = () => { checkAlso(); clearTimeout(lt); lt = setTimeout(lookup, 700); };
   artistI.addEventListener("input", onNameChange);
@@ -343,16 +374,25 @@ function openSettings(section) {
       </details>
 
       <details class="group"><summary>🎨 Boja, font i kartice</summary>
-      <div class="fl" style="margin-top:6px">Boja naglaska <button class="mini" id="s-accent-reset">Kao u stilu</button></div>
-      <div class="swatches" id="s-accent">${Object.values(THEMES).map(c => `<button class="sw ${c === s.accent ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Naglasak ${c}"></button>`).join("")}
-        <input type="color" class="sw-input" id="s-accent-custom" value="${esc(s.accent || style().accent)}" title="Svoja boja" aria-label="Svoja boja naglaska"></div>
-
-      <div class="fl" style="margin-top:16px">Font</div>
-      <div class="choice" id="s-font"><button data-v="auto" class="${s.font === "auto" ? "on" : ""}">iz stila</button>${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${k}</button>`).join("")}</div>
-      <div class="fl" style="margin-top:16px"><label for="s-mscale">Veličina naziva mjeseca</label> <small id="s-mscale-v">${Math.round((s.monthScale || 1) * 100)}%</small></div>
-      <div class="ms-range"><small>A</small><input type="range" class="range" id="s-mscale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small style="font-size:18px">A</small></div>
-      <div class="fl" style="margin-top:16px">Kartice albuma</div>
-      <div class="choice" id="s-cards">${[["collapsed", "Uredno – dodirni za otvaranje"], ["open", "Uvijek otvorene"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      <div class="set-list">
+        <div class="set-row">
+          <div class="set-label">Boja naglaska <button class="mini" id="s-accent-reset">kao u stilu</button></div>
+          <div class="swatches sm" id="s-accent">${Object.values(THEMES).map(c => `<button class="sw ${c === s.accent ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Naglasak ${c}"></button>`).join("")}
+            <label class="sw sw-custom" title="Svoja boja" aria-label="Svoja boja naglaska"><input type="color" id="s-accent-custom" value="${esc(s.accent || style().accent)}"><span aria-hidden="true">＋</span></label></div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">Font</div>
+          <div class="seg wide" id="s-font"><button data-v="auto" class="${s.font === "auto" ? "on" : ""}">Iz stila</button>${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${{ system: "Obični", rounded: "Obli", mono: "Mono", serif: "Serif" }[k] || k}</button>`).join("")}</div>
+        </div>
+        <div class="set-row">
+          <div class="set-label"><label for="s-mscale">Veličina naziva mjeseca</label><small id="s-mscale-v">${Math.round((s.monthScale || 1) * 100)} %</small></div>
+          <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="s-mscale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
+        </div>
+        <div class="set-row">
+          <div class="set-label">Kartice albuma</div>
+          <div class="seg wide" id="s-cards">${[["collapsed", "Zatvorene"], ["open", "Uvijek otvorene"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        </div>
+      </div>
       </details>
 
       <details class="group"><summary>✨ Pozadina koja lebdi</summary>
@@ -400,21 +440,21 @@ function openSettings(section) {
     if (style().bgSet === "off") s.bg.on = false;
     else if (Object.values(STYLES).some(x => x.bgSet === s.bg.set) || !s.bg.on) { s.bg.set = style().bgSet; s.bg.on = true; }
     $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
-    $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on"));
+    $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on"));
     $("#s-accent-custom", ov).value = style().accent;
     $(".group-val", ov).textContent = style().name;
     rerender();
   }));
-  $$("#s-accent .sw", ov).forEach(el => el.addEventListener("click", () => {
-    $$("#s-accent .sw", ov).forEach(x => x.classList.toggle("on", x === el)); s.accent = el.dataset.c; saveSettings();
+  $$("#s-accent .sw[data-c]", ov).forEach(el => el.addEventListener("click", () => {
+    $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.toggle("on", x === el)); s.accent = el.dataset.c; saveSettings();
   }));
-  $("#s-accent-reset", ov).addEventListener("click", () => { s.accent = null; $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on")); $("#s-accent-custom", ov).value = style().accent; saveSettings(); });
-  $("#s-accent-custom", ov).addEventListener("input", e => { s.accent = e.target.value; $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on")); saveSettings(); });
+  $("#s-accent-reset", ov).addEventListener("click", () => { s.accent = null; $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on")); $("#s-accent-custom", ov).value = style().accent; saveSettings(); });
+  $("#s-accent-custom", ov).addEventListener("input", e => { s.accent = e.target.value; $$("#s-accent .sw[data-c]", ov).forEach(x => x.classList.remove("on")); saveSettings(); });
   choice("#s-bgset", v => { if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
   choice("#s-bgcolor", v => { s.bg.color = v; saveSettings(); });
   ["density", "speed", "opacity"].forEach(k => $("#s-" + k, ov).addEventListener("change", e => { s.bg[k] = +e.target.value; s.bg.on = true; saveSettings(); }));
   choice("#s-font", v => { s.font = v; saveSettings(); });
-  $("#s-mscale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; $("#s-mscale-v", ov).textContent = Math.round(s.monthScale * 100) + "%"; saveSettings(); });
+  $("#s-mscale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; $("#s-mscale-v", ov).textContent = Math.round(s.monthScale * 100) + " %"; saveSettings(); });
   choice("#s-cards", v => { s.cards = v; state.openCards = new Set(); rerender(); });
 
   $("#s-backup", ov).addEventListener("click", () => {
@@ -474,7 +514,7 @@ function openMonthStyle(m) {
       <section class="ms-sec"><label class="fl" for="m-tint">Obojenost kartica</label>
         <div class="ms-range"><small>bez</small><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"><small>puno</small></div>
       </section>
-      <section class="ms-sec"><label class="toggle"><input type="checkbox" id="m-hidden" ${mp().hidden ? "checked" : ""}> Sklopi ovaj mjesec <small>(ili dodirni naziv mjeseca)</small></label></section>
+      <section class="ms-sec"><label class="toggle"><input type="checkbox" id="m-hidden" ${isFolded(m) ? "checked" : ""}> Sklopi ovaj mjesec <small>(ili dodirni naziv mjeseca)</small></label></section>
     </div>
     <div class="form-actions"><button class="btn btn-ghost" id="m-reset">Vrati zadano</button><button class="btn btn-primary" data-close>Gotovo</button></div>
   </div>`;
@@ -507,7 +547,7 @@ function openMonthStyle(m) {
     mp().icon = v; apply();
   });
   $("#m-hidden", ov).addEventListener("change", e => { mp().hidden = e.target.checked; apply(); });
-  $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; $("#m-icon-custom", ov).value = ""; $("#m-hidden", ov).checked = false; apply(); });
+  $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; $("#m-icon-custom", ov).value = ""; apply(); $("#m-hidden", ov).checked = isFolded(m); });
 }
 
 // ═══════════════ floating background ═══════════════

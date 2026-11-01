@@ -124,7 +124,7 @@ function loadStyleFont(st) {
 }
 /** Rating symbols (text glyphs, forced to text style with U+FE0E so they can be half-filled). */
 const RATE_SYMBOLS = ["★", "♥", "●", "◆", "✦", "♪", "✿", "☾"];
-const rateSym = () => (RATE_SYMBOLS.includes(state.settings.rateSymbol) ? state.settings.rateSymbol : "★") + "\uFE0E";
+const rateSym = () => "★\uFE0E"; // the rating symbol is always a star now
 const MONTH_ICONS = ["", "❄", "♥", "✿", "☂", "❀", "☀", "⛱", "✦", "🍂", "☾", "☁", "★", "♪", "📼", "📷"];
 const style = () => STYLES[state.settings.style] || STYLES.default;
 const DEFAULT_SETTINGS = {

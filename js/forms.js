@@ -484,8 +484,7 @@ function openSettings(section) {
             ${me.avatar ? `<button class="pc-btn danger" id="s-nophoto" type="button">Makni fotku</button>` : ""}
           </div>
         </div>
-        <div class="color-pop" id="s-ucolor" hidden>${USER_COLORS_UI.map(c => `<button class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Boja profila ${c}"></button>`).join("")}
-          <label class="sw sw-custom ${me.color && !USER_COLORS_UI.includes(me.color) ? "on" : ""}" title="Bilo koja boja" aria-label="Odaberi bilo koju boju"><input type="color" id="s-ucolor-custom" value="${esc(/^#[0-9a-f]{6}$/i.test(me.color || "") ? me.color : "#ff6b6b")}"><span aria-hidden="true">＋</span></label></div>
+        <div class="color-pop" id="s-ucolor" hidden></div>
       </section>` : ""}
 
       <div class="set-heading">Muzika</div>
@@ -593,70 +592,88 @@ function openSettings(section) {
       pop.hidden = !open; e.currentTarget.setAttribute("aria-expanded", open);
     });
     $("#s-nophoto", ov)?.addEventListener("click", () => { queue({ action: "updateUser", name: me.name, avatar: "" }, "Fotka profila"); close(); });
-    // any colour: applied once you've picked (debounced so dragging the picker doesn't flood the Sheet)
     let ucT;
-    $("#s-ucolor-custom", ov).addEventListener("input", e => {
-      const c = e.target.value;
-      $$("#s-ucolor .sw[data-c]", ov).forEach(x => x.classList.remove("on"));
-      $("#s-ucolor .sw-custom", ov).classList.add("on");
+    colorPicker($("#s-ucolor", ov), { value: me.color, tones: PALETTE_TONES.slice(0, 2), onPick: c => {
       $(".pc-dot", ov).style.background = c;
-      clearTimeout(ucT); ucT = setTimeout(() => queue({ action: "updateUser", name: me.name, color: c }, "Boja profila"), 600);
-    });
-    $$("#s-ucolor .sw[data-c]", ov).forEach(el => el.addEventListener("click", () => {
-      $$("#s-ucolor .sw[data-c]", ov).forEach(x => x.classList.toggle("on", x === el));
-      queue({ action: "updateUser", name: me.name, color: el.dataset.c }, "Boja profila");
-      $(".pc-dot", ov).style.background = el.dataset.c;
-      $("#s-ucolor .sw-custom", ov).classList.remove("on");
-      setTimeout(() => { $("#s-ucolor", ov).hidden = true; $("#s-color-toggle", ov).setAttribute("aria-expanded", false); }, 250);
-    }));
+      clearTimeout(ucT); ucT = setTimeout(() => queue({ action: "updateUser", name: me.name, color: c }, "Boja profila"), 500);
+    } });
   }
 }
 
+// ═══════════════ colour palette + own colour picker (same in every style) ═══════════════
+const PALETTE_HUES = [0, 18, 35, 50, 85, 135, 165, 190, 210, 235, 270, 320];
+const PALETTE_TONES = [[85, 80], [72, 62], [60, 42]]; // [saturation, lightness]: light, medium, deep
+function hslHex(h, sat, l) {
+  sat /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
+  const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))).toString(16).padStart(2, "0");
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+function hexHsl(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return { h: 0, l: 60 };
+  const n = parseInt(m[1], 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, l = (max + min) / 2;
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: Math.round((h * 60 + 360) % 360), l: Math.round(l * 100) };
+}
+const PALETTE = tones => tones.flatMap(([sa, l]) => PALETTE_HUES.map(h => hslHex(h, sa, l)));
+
+/** A grid of colours + "Svoja boja" with two friendly sliders (shade, light↔dark) instead of the system picker. */
+function colorPicker(el, { value, tones = PALETTE_TONES, onPick }) {
+  const colors = PALETTE(tones);
+  let cur = String(value || "").toLowerCase();
+  el.classList.add("cpick");
+  el.innerHTML = `<div class="cp-grid">${colors.map(c => `<button type="button" class="cp-sw" data-c="${c}" style="--c:${c}" aria-label="Boja ${c}"></button>`).join("")}</div>
+    <button type="button" class="cp-own-toggle" aria-expanded="false"><i class="cp-own-dot"></i>Svoja boja</button>
+    <div class="cp-own" hidden>
+      <label class="cp-row"><span>Nijansa</span><input type="range" class="cp-hue" min="0" max="359" step="1" aria-label="Nijansa"></label>
+      <label class="cp-row"><span>Svjetlina</span><input type="range" class="cp-light" min="25" max="88" step="1" aria-label="Svjetlina"></label>
+    </div>`;
+  const hue = $(".cp-hue", el), light = $(".cp-light", el), own = $(".cp-own", el), tog = $(".cp-own-toggle", el);
+  const paint = () => {
+    $$(".cp-sw", el).forEach(b => b.classList.toggle("on", b.dataset.c === cur));
+    const custom = cur && !colors.includes(cur);
+    tog.classList.toggle("on", custom);
+    $(".cp-own-dot", el).style.background = custom ? cur : "conic-gradient(#f66, #fd5, #6f8, #6cf, #a7f, #f6c, #f66)";
+    const { h, l } = hexHsl(cur || "#ff6b6b");
+    hue.value = h; light.value = Math.max(25, Math.min(88, l));
+    light.style.setProperty("--h", h);
+  };
+  const pick = c => { cur = c.toLowerCase(); paint(); onPick(cur); };
+  $$(".cp-sw", el).forEach(b => b.addEventListener("click", () => pick(b.dataset.c)));
+  tog.addEventListener("click", () => { own.hidden = !own.hidden; tog.setAttribute("aria-expanded", !own.hidden); });
+  const fromSliders = () => { light.style.setProperty("--h", hue.value); pick(hslHex(+hue.value, 72, +light.value)); };
+  hue.addEventListener("input", fromSliders); light.addEventListener("input", fromSliders);
+  paint();
+  return { set: c => { cur = String(c || "").toLowerCase(); paint(); } };
+}
+
 // ═══════════════ per-month style sheet ═══════════════
-/** A small, clear sheet: live preview on top, then Colour, Symbol (+ which side), Card tint, Fold. */
+/** One simple page: live preview on top, then colour, symbol, card tint and the (all-months) name size. */
 function openMonthStyle(m) {
   const s = state.settings;
   const name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
   const mp = () => (s.months[m] = s.months[m] || {});
-  const palette = style().monthColors.filter((c, i, arr) => arr.indexOf(c) === i);
-  const cur = () => String(monthColor(m)).toLowerCase();
   const custom = !MONTH_ICONS.includes(mp().icon || "") ? mp().icon : "";
   const ov = document.createElement("div");
   ov.className = "overlay month-sheet";
   ov.innerHTML = `<div class="sheet sheet-sm" role="dialog" aria-label="Izgled mjeseca: ${esc(name)}">
     <div class="sheet-header"><div class="sheet-title">Izgled mjeseca</div><button class="btn btn-ghost btn-icon" data-close aria-label="Zatvori">✕</button></div>
-    <div class="month-preview-wrap"><div class="month-head preview" aria-hidden="true"><span class="month-name"><h2></h2></span><span class="month-rule"></span></div>
-      <div class="card preview-card" aria-hidden="true"><div class="card-top"><div class="card-main"><div class="artist">Izvođač</div><div class="album-name">Ovako izgledaju kartice: ${esc(name)}</div></div><div class="peek"><span class="score">${rateSym()} <b>4.5</b></span></div></div></div></div>
+    <div class="month-preview-wrap"><div class="month month-pv"><div class="month-head preview" aria-hidden="true"><span class="month-name"><h2></h2></span><span class="month-rule"></span></div></div>
+      <div class="card preview-card" aria-hidden="true"><div class="card-top"><div class="card-main"><div class="artist">Izvođač</div><div class="album-name">Ovako izgledaju kartice</div></div><div class="peek"><span class="score">${rateSym()} <b>4.5</b></span></div></div></div></div>
     <div class="sheet-body">
-      <div class="seg wide ms-tabs" role="tablist" aria-label="Što uređuješ">
-        <button type="button" role="tab" class="on" aria-selected="true" data-tab="one">Ovaj mjesec</button>
-        <button type="button" role="tab" aria-selected="false" data-tab="all">Svi mjeseci</button>
-      </div>
-      <div class="ms-panel" data-panel="one">
-      <section class="ms-sec"><div class="fl">Boja</div>
-        <div class="swatches" id="m-color">${palette.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-label="Boja ${c}"></button>`).join("")}
-          <label class="sw sw-custom" title="Bilo koja boja" aria-label="Odaberi bilo koju boju"><input type="color" id="m-custom" value="${esc(/^#/.test(monthColor(m)) ? monthColor(m) : "#888888")}"><span aria-hidden="true">＋</span></label></div>
-      </section>
+      <section class="ms-sec"><div class="fl">Boja <button type="button" class="mini" id="m-color-reset">zadana</button></div><div id="m-color"></div></section>
       <section class="ms-sec"><div class="fl">Simbol <small>– s obje strane naziva</small></div>
         <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}</div>
-        <div class="ms-row">
-          <input class="fi" id="m-icon-custom" maxlength="12" placeholder="Upiši svoj: 🌧️ ✌︎ ₍ᐢ•ﻌ•ᐢ₎" value="${esc(custom || "")}" aria-label="Upiši svoj simbol">
-        </div>
+        <input class="fi" id="m-icon-custom" maxlength="12" placeholder="…ili upiši svoj: 🌧️ ✌︎ ₍ᐢ•ﻌ•ᐢ₎" value="${esc(custom || "")}" aria-label="Upiši svoj simbol">
       </section>
       <section class="ms-sec"><label class="fl" for="m-tint">Obojenost kartica</label>
         <div class="ms-range"><small>bez</small><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"><small>puno</small></div>
       </section>
-      <section class="ms-sec"><label class="toggle"><input type="checkbox" id="m-hidden" ${isFolded(m) ? "checked" : ""}> Sklopi ovaj mjesec <small>(ili dodirni naziv mjeseca)</small></label></section>
-      </div>
-      <div class="ms-panel" data-panel="all" hidden>
-        <section class="ms-sec"><div class="fl"><label for="m-scale">Veličina naziva</label> <small id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</small></div>
-          <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
-        </section>
-        <section class="ms-sec"><div class="fl">Simbol ocjene</div>
-          <div class="rate-syms" id="m-ratesym" role="radiogroup" aria-label="Simbol ocjene">${RATE_SYMBOLS.map(c => `<button type="button" role="radio" data-v="${c}">${c}\uFE0E</button>`).join("")}</div>
-        </section>
-        <p class="hint">Ove promjene vrijede za sve mjesece.</p>
-      </div>
+      <section class="ms-sec ms-all"><div class="fl"><label for="m-scale">Veličina naziva</label> <small>– za sve mjesece · <span id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</span></small></div>
+        <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
+      </section>
     </div>
     <div class="form-actions"><button class="btn btn-ghost" id="m-reset">Vrati zadano</button><button class="btn btn-primary" data-close>Gotovo</button></div>
   </div>`;
@@ -665,25 +682,21 @@ function openMonthStyle(m) {
   $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
 
+  const picker = colorPicker($("#m-color", ov), { value: monthColor(m), onPick: c => { mp().color = c; apply(); } });
   const paint = () => {
     const c = monthColor(m);
-    const sheet = $(".sheet", ov);
-    [sheet, $(".preview-card", ov)].forEach(el => { el.style.setProperty("--m", c); el.style.setProperty("--tint", monthTint(m)); });
+    [$(".sheet", ov), $(".preview-card", ov)].forEach(el => { el.style.setProperty("--m", c); el.style.setProperty("--tint", monthTint(m)); });
     $(".preview h2", ov).innerHTML = monthTitleHtml(m);
-    $$("#m-color .sw[data-c]", ov).forEach(x => x.classList.toggle("on", x.dataset.c.toLowerCase() === cur()));
-    $(".sw-custom", ov).classList.toggle("on", !$$("#m-color .sw[data-c]", ov).some(x => x.classList.contains("on")));
     $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === (mp().icon || "")));
     $("#m-tint", ov).value = parseInt(monthTint(m));
-    $(".preview-card .score", ov).innerHTML = `${rateSym()} <b>4.5</b>`;
-    $$("#m-ratesym button", ov).forEach(x => { const on = x.dataset.v === (s.rateSymbol || "★"); x.classList.toggle("on", on); x.setAttribute("aria-checked", on); });
     $("#m-scale-v", ov).textContent = Math.round((s.monthScale || 1) * 100) + " %";
   };
   const apply = () => { saveSettings(); paint(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderList(); };
   paint();
 
-  $$("#m-color .sw[data-c]", ov).forEach(b => b.addEventListener("click", () => { mp().color = b.dataset.c; $("#m-custom", ov).value = b.dataset.c; apply(); }));
-  $("#m-custom", ov).addEventListener("input", e => { mp().color = e.target.value; apply(); });
+  $("#m-color-reset", ov).addEventListener("click", () => { delete mp().color; picker.set(monthColor(m)); apply(); });
   $("#m-tint", ov).addEventListener("input", e => { mp().tint = +e.target.value; apply(); });
+  $("#m-scale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; apply(); });
   $$("#m-icon button", ov).forEach(b => b.addEventListener("click", () => { mp().icon = b.dataset.v; $("#m-icon-custom", ov).value = ""; apply(); }));
   $("#m-icon-custom", ov).addEventListener("input", e => {
     // short on purpose: at most 3 visible characters (an emoji with skin tone counts as one)
@@ -691,16 +704,11 @@ function openMonthStyle(m) {
     try { v = [...new Intl.Segmenter().segment(v)].slice(0, 3).map(x => x.segment).join(""); } catch (err) { v = [...v].slice(0, 3).join(""); }
     mp().icon = v; apply();
   });
-  $("#m-hidden", ov).addEventListener("change", e => { mp().hidden = e.target.checked; apply(); });
-  // tabs: this month / all months
-  $$(".ms-tabs button", ov).forEach(b => b.addEventListener("click", () => {
-    $$(".ms-tabs button", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", x === b); });
-    $$(".ms-panel", ov).forEach(pn => pn.hidden = pn.dataset.panel !== b.dataset.tab);
-  }));
-  // for every month: name size + rating symbol, seen live in the preview and the list behind
-  $("#m-scale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; apply(); });
-  $$("#m-ratesym button", ov).forEach(b => b.addEventListener("click", () => { s.rateSymbol = b.dataset.v; apply(); }));
-  $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; $("#m-icon-custom", ov).value = ""; apply(); $("#m-hidden", ov).checked = isFolded(m); });
+  $("#m-reset", ov).addEventListener("click", () => {
+    const hidden = mp().hidden;
+    delete s.months[m]; if (hidden !== undefined) mp().hidden = hidden;
+    $("#m-icon-custom", ov).value = ""; picker.set(monthColor(m)); apply();
+  });
 }
 
 // ═══════════════ floating background ═══════════════

@@ -1,8 +1,8 @@
 // Muzika Tracker service worker: lets the app open without internet.
 // Network first (so updates show immediately), cached copy as fallback. API calls are never cached here
 // – the app keeps its own data copy in localStorage.
-const CACHE = "muzika-shell-v4";
-const SHELL = ["./", "index.html", "styles.css?v=4", "js/core.js?v=4", "js/ui.js?v=4", "js/forms.js?v=4"];
+const CACHE = "muzika-shell-v5";
+const SHELL = ["./", "index.html", "styles.css?v=5", "js/core.js?v=5", "js/ui.js?v=5", "js/forms.js?v=5"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

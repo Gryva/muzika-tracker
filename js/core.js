@@ -296,7 +296,7 @@ let coverRun = false;
 async function maybeAutoCovers() {
   if (coverRun || !state.online || !state.snap) return;
   if (Date.now() - lsGet("muzika_cover_run", 0) < 25000) return;
-  const missing = state.snap.albums.filter(a => !a.cover && !a.lookedUp).length;
+  const missing = state.snap.albums.filter(a => (!a.cover && !a.lookedUp) || ((a.apple || a.deezer) && !a.spotify && !a.youtube && !a.linkedUp)).length;
   if (!missing) return;
   coverRun = true; lsSet("muzika_cover_run", Date.now());
   try {
@@ -424,6 +424,8 @@ function computeNotifs() {
     if (!isNew(a)) continue;
     let extra = "";
     if (myNks.has(a.nk)) extra = "✨ You listened to this too";
+    const fromMe = v.listen.find(l => l.forUser === a.owner && l.addedBy === a.owner && l.note === `from ${me}` && listenDone(l) === a);
+    if (fromMe) extra = "🎧 Found it in your table!";
     const sug = mySuggestions.find(l => l.forUser === a.owner && listenDone(l) === a);
     if (sug) extra = "🎯 Your suggestion!";
     out.push({ type: "album", ts: a.created || v.serverTime, user: a.owner, key: a.key, html: `<b>${esc(a.owner)}</b> added <b>${title(a)}</b>`, extra });

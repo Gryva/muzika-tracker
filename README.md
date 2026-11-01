@@ -8,14 +8,14 @@ Replaces the Excel music tracker with a real-time web app that uses **your Googl
 - The web app shows the same data in a **mobile-friendly UI**
 - When anyone adds/edits in the **app**, it writes directly to the **Sheet**
 - When anyone edits the **Sheet** directly, the **app** picks it up on its next poll (every 10 s; an `onEdit` trigger clears the server cache right away)
-- Everyone can still download the `.xlsx` anytime — the Sheet IS the Excel
+- The 📊 button in the app opens the Google Sheet directly, so you can always check or fix things by hand
 
 ---
 
 ## ⚠️ After updating `google-apps-script.js`
 
 1. Paste the new code into **Extensions → Apps Script**, save
-2. In the toolbar pick the function **`setup`** → **Run** → allow the permissions (Drive for uploaded covers, external requests for cover lookup)
+2. In the toolbar pick the function **`setup`** → **Run** → allow the permissions (Drive for uploaded covers, external requests for cover + link lookup)
 3. **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy** (URL stays the same)
 
 The app creates `app_users`, `app_meta`, `app_comments`, `app_reactions`, `app_listen`, `app_trash` tabs automatically. Don't rename them.
@@ -112,7 +112,7 @@ https://YOUR_USERNAME.github.io/muzika-tracker
 2. **Pick your name** (Hela, Karlo, Lea, Lovro, Lucija)
 3. **Tap ＋ Add** → fill the form → it appears in your Sheet instantly
 4. **Open the Sheet** on your computer → same data, updated live
-5. **Tap 📥** to download a fresh `.xlsx` with all albums anytime
+5. **Tap 📊** to jump to the Google Sheet and edit it directly
 
 ---
 
@@ -123,7 +123,10 @@ https://YOUR_USERNAME.github.io/muzika-tracker
 - ✅ **Edit on desktop** — the Sheet works like always
 - ✅ **Per-user styling** — everyone picks their own theme/view in the app
 - ✅ **Search/filter** — find any album fast
-- ✅ **Export** — download `.xlsx` anytime
+- ✅ **Comments, reactions & quiet notifications** — a 🔔 badge and tab dots, no pop-ups
+- ✅ **Covers + Spotify/YouTube links found automatically** (iTunes/Deezer for covers, Odesli/song.link for links) — or upload your own cover
+- ✅ **Listen lists** — suggest albums to each other
+- ✅ **Works offline** — changes wait on the device and sync when you're back online
 - ✅ **No Firebase, no accounts, no extra cost**
 
 ---

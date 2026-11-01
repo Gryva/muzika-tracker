@@ -7,6 +7,7 @@
  *   • app_* tabs hold app data (created automatically, also editable by hand):
  *       app_users      who uses the app (name, tab, avatar, colour, synced settings)
  *       app_meta       per-album extras: cover, Spotify / YouTube / Apple / Deezer links
+ *                      (Spotify + YouTube found automatically via the free Odesli / song.link API)
  *       app_comments   comments on albums
  *       app_reactions  emoji reactions
  *       app_listen     listen lists ("you should hear this")
@@ -52,14 +53,14 @@ var MONTH_LABELS = ["SIJEČANJ", "VELJAČA", "OŽUJAK", "TRAVANJ", "SVIBANJ", "L
 
 var TABS = {
   users:     ["name", "sheet", "avatar", "color", "settings", "created"],
-  meta:      ["key", "owner", "artist", "album", "cover", "coverSource", "spotify", "youtube", "apple", "deezer", "clientId", "created", "lookedUp"],
+  meta:      ["key", "owner", "artist", "album", "cover", "coverSource", "spotify", "youtube", "apple", "deezer", "clientId", "created", "lookedUp", "linkedUp"],
   comments:  ["id", "key", "owner", "author", "text", "ts"],
   reactions: ["key", "owner", "user", "emoji", "ts"],
   listen:    ["id", "forUser", "artist", "album", "addedBy", "note", "ts"],
   trash:     ["deletedAt", "owner", "row", "data"]
 };
 
-var CACHE_KEY = "muzika_v4";
+var CACHE_KEY = "muzika_v5";
 var CACHE_TTL = 30;          // seconds; onEdit + every app write clear it immediately
 var CHUNK = 90000;           // CacheService limit is 100KB per value
 
@@ -178,6 +179,7 @@ function buildPayload() {
     META_FIELDS.forEach(function (f) { if (m[f]) a[f] = m[f]; });
     if (m.created) a.created = Number(m.created) || 0;
     if (m.lookedUp) a.lookedUp = true;
+    if (m.linkedUp) a.linkedUp = true;
   });
 
   return {
@@ -448,6 +450,9 @@ function addAlbum(p, pre) {
     if (!meta.cover && lookup.cover) { meta.cover = lookup.cover; meta.coverSource = lookup.source; }
     if (!meta.apple && lookup.apple) meta.apple = lookup.apple;
     if (!meta.deezer && lookup.deezer) meta.deezer = lookup.deezer;
+    if (!meta.spotify && lookup.spotify) meta.spotify = lookup.spotify;
+    if (!meta.youtube && lookup.youtube) meta.youtube = lookup.youtube;
+    if (lookup.linked) meta.linkedUp = String(Date.now());
   }
   upsertMeta(key, meta);
   return { success: true, id: u.sheet + "_" + targetRow, key: key };
@@ -565,7 +570,24 @@ function autoCoversPrepare(p) {
     return !m || (!m.cover && !m.lookedUp);
   });
   var batch = missing.slice(0, limit);
-  return { batch: batch, results: batch.length ? lookupMany(batch) : [], remaining: missing.length - batch.length };
+  if (batch.length) {
+    var results = lookupMany(batch);
+    addStreamingLinks(results, ODESLI_BATCH);
+    return { batch: batch, results: results, remaining: missing.length - batch.length };
+  }
+  // all covers done -> backfill Spotify / YouTube links for older entries
+  var albumKeys = {};
+  readAllAlbums(getUsers()).forEach(function (a) { albumKeys[a.key] = a; });
+  var noLinks = Object.keys(metaMap).map(function (k) { return metaMap[k]; }).filter(function (m) {
+    return albumKeys[m.key] && (m.apple || m.deezer) && !m.spotify && !m.youtube && !m.linkedUp;
+  });
+  var lb = noLinks.slice(0, ODESLI_BATCH).map(function (m) {
+    var a = albumKeys[m.key];
+    return { key: a.key, owner: a.owner, artist: a.artist, album: a.album, linksOnly: true, _src: { apple: m.apple, deezer: m.deezer } };
+  });
+  var lr = lb.map(function (a) { return a._src; });
+  addStreamingLinks(lr, ODESLI_BATCH);
+  return { batch: lb, results: lr, remaining: noLinks.length - lb.length };
 }
 
 function autoCoversWrite(prep) {
@@ -573,11 +595,23 @@ function autoCoversWrite(prep) {
   rows.forEach(function (m) { byKey[m.key] = m; });
   prep.batch.forEach(function (a, i) {
     var r = prep.results[i] || {};
+    var existing = byKey[a.key];
+    if (a.linksOnly) {
+      if (!existing) return;
+      var lm = {};
+      if (r.linked) lm.linkedUp = String(Date.now());
+      if (r.spotify && !existing.spotify) lm.spotify = r.spotify;
+      if (r.youtube && !existing.youtube) lm.youtube = r.youtube;
+      if (Object.keys(lm).length) setObj("meta", existing._row, lm);
+      return;
+    }
     var meta = { owner: a.owner, artist: a.artist, album: a.album, lookedUp: String(Date.now()) };
     if (r.cover) { meta.cover = r.cover; meta.coverSource = r.source; }
     if (r.apple) meta.apple = r.apple;
     if (r.deezer) meta.deezer = r.deezer;
-    var existing = byKey[a.key];
+    if (r.linked) meta.linkedUp = String(Date.now());
+    if (r.spotify && !(existing && existing.spotify)) meta.spotify = r.spotify;
+    if (r.youtube && !(existing && existing.youtube)) meta.youtube = r.youtube;
     if (existing) { if (!existing.cover) setObj("meta", existing._row, meta); }
     else { meta.key = a.key; byKey[a.key] = meta; fresh.push(meta); }
   });
@@ -661,7 +695,42 @@ function lookupAlbum(artist, album, spotify) {
   if (artist && album) result = lookupMany([{ artist: artist, album: album }])[0];
   var sp = spotifyCover(spotify);
   if (sp) { result = result || {}; result.cover = sp; result.source = "spotify"; }
+  if (result && (result.apple || result.deezer || sp)) {
+    if (sp) result.spotifyIn = spotify;
+    addStreamingLinks([result], 1);
+    delete result.spotifyIn;
+    if (sp && !result.spotify) result.spotify = spotify;
+  }
   return result;
+}
+
+/**
+ * Odesli (song.link) turns one streaming link into links for every platform – free, no API key.
+ * Unauthenticated limit is ~10 calls/minute, so batches stay small. Adds .spotify / .youtube to results.
+ */
+var ODESLI_BATCH = 4;
+function addStreamingLinks(results, max) {
+  var idx = [];
+  results.forEach(function (r, i) { if (r && (r.spotifyIn || r.apple || r.deezer) && idx.length < max) idx.push(i); });
+  if (!idx.length) return;
+  var reqs = idx.map(function (i) {
+    var r = results[i];
+    return { url: "https://api.song.link/v1-alpha.1/links?userCountry=HR&url=" + encodeURIComponent(r.spotifyIn || r.apple || r.deezer), muteHttpExceptions: true };
+  });
+  var resp;
+  try { resp = UrlFetchApp.fetchAll(reqs); } catch (e) { return; }
+  idx.forEach(function (i, j) {
+    var code = resp[j].getResponseCode();
+    if (code === 429) return;                // rate limited: try again on a later run
+    results[i].linked = true;                // looked up (found or not) -> don't retry forever
+    if (code !== 200) return;
+    try {
+      var L = JSON.parse(resp[j].getContentText()).linksByPlatform || {};
+      if (L.spotify && L.spotify.url) results[i].spotify = L.spotify.url;
+      var yt = L.youtube || L.youtubeMusic;
+      if (yt && yt.url) results[i].youtube = yt.url;
+    } catch (e) {}
+  });
 }
 
 function safeLookup(artist, album, spotify) {
@@ -765,9 +834,21 @@ function getTab(t) {
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, sheet.getMaxRows(), TABS[t].length).setNumberFormat("@"); // everything as plain text
     sheet.setTabColor("#888888");
+  } else if (!_headersOk[t]) {
+    // tab made by an older version of this script: append any new columns
+    var have = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(function (h) { return String(h).trim(); });
+    TABS[t].forEach(function (col, i) {
+      if (have[i] !== col && have.indexOf(col) < 0 && !have[i]) {
+        if (sheet.getMaxColumns() < i + 1) sheet.insertColumnsAfter(sheet.getMaxColumns(), i + 1 - sheet.getMaxColumns());
+        sheet.getRange(1, i + 1).setValue(col).setFontWeight("bold");
+        sheet.getRange(1, i + 1, sheet.getMaxRows(), 1).setNumberFormat("@");
+      }
+    });
   }
+  _headersOk[t] = true;
   return sheet;
 }
+var _headersOk = {};
 
 function readTab(t) {
   var sheet = getTab(t);

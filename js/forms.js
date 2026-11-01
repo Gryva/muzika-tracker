@@ -198,8 +198,8 @@ function openEditor(a = null, prefill = {}) {
       <div class="fg"><label class="fl">Standout tracks</label><input class="fi" id="f-tracks" value="${esc(a?.standoutTracks || "")}" placeholder="Dogs, Pigs, Sheep"></div>
       <div class="fg"><label class="fl">Note <small>– goes in the comment column of your Sheet</small></label><input class="fi" id="f-comments" value="${esc(a?.comments || "")}" placeholder="Anything else?"></div>
       <div class="row2">
-        <div class="fg"><label class="fl">Spotify link <small>(optional)</small></label><input class="fi" id="f-spotify" value="${esc(a?.spotify || "")}" placeholder="https://open.spotify.com/album/…" inputmode="url"></div>
-        <div class="fg"><label class="fl">YouTube link <small>(optional)</small></label><input class="fi" id="f-youtube" value="${esc(a?.youtube || "")}" placeholder="https://youtube.com/…" inputmode="url"></div>
+        <div class="fg"><label class="fl">Spotify link <small>(auto)</small></label><input class="fi" id="f-spotify" value="${esc(a?.spotify || "")}" placeholder="https://open.spotify.com/album/…" inputmode="url"></div>
+        <div class="fg"><label class="fl">YouTube link <small>(auto)</small></label><input class="fi" id="f-youtube" value="${esc(a?.youtube || "")}" placeholder="https://youtube.com/…" inputmode="url"></div>
       </div>
     </div>
     <div class="form-actions">
@@ -251,7 +251,12 @@ function openEditor(a = null, prefill = {}) {
       if (r?.cover) { f.cover = r.cover; f.coverSource = r.source; f.coverMode = "auto"; paintCover(); }
       if (r?.year && !$("#f-year", ov).value) $("#f-year", ov).value = r.year;
       if (r?.genre && !$("#f-genre", ov).value) $("#f-genre", ov).value = r.genre;
-      hint.textContent = r?.cover ? `Found via ${r.source === "itunes" ? "Apple Music" : r.source === "deezer" ? "Deezer" : "Spotify"} ✓` : "No cover found – upload one?";
+      // fill the link fields, but never overwrite a link the user typed themselves
+      const ytI = $("#f-youtube", ov);
+      if (!spotifyI.value || spotifyI.value === f.autoSp) spotifyI.value = f.autoSp = r?.spotify || "";
+      if (!ytI.value || ytI.value === f.autoYt) ytI.value = f.autoYt = r?.youtube || "";
+      const lk = [r?.spotify && "Spotify", r?.youtube && "YouTube"].filter(Boolean);
+      hint.textContent = (r?.cover ? `Found via ${r.source === "itunes" ? "Apple Music" : r.source === "deezer" ? "Deezer" : "Spotify"} ✓` : "No cover found – upload one?") + (lk.length ? ` · ${lk.join(" + ")} link${lk.length > 1 ? "s" : ""} ✓` : "");
       hint.className = "hint " + (r?.cover ? "ok" : "warn");
     } catch (e) {
       if (seq === lookupSeq) { hint.textContent = isNetworkError(e) ? "Offline – will look it up when synced" : e.message; hint.className = "hint warn"; }

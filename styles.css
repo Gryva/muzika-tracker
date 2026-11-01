@@ -2885,3 +2885,4 @@ button.logo:active { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) { [data-style="neu"] .btn, [data-style="neu"] .dock-btn, [data-style="neu"] .who-btn { transition: none; } }
 [data-style="neu"] .month.folded .month-rule { background: var(--neu-base); box-shadow: inset 2px 2px 4px var(--neu-dark), inset -2px -2px 4px var(--neu-light); height: 4px; }
 
+.welcome-sign small b { color: var(--text); font-weight: 800; }

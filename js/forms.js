@@ -666,13 +666,11 @@ function openMonthStyle(m) {
     <div class="month-preview-wrap"><div class="month month-pv"><div class="month-head preview" aria-hidden="true"><span class="month-name"><h2></h2></span><span class="month-rule"></span></div></div>
       <div class="card preview-card" aria-hidden="true"><div class="card-top"><div class="card-main"><div class="artist">Izvođač</div><div class="album-name">Ovako izgledaju kartice</div></div><div class="peek"><span class="score">${rateSym()} <b>4.5</b></span></div></div></div></div>
     <div class="sheet-body">
-      <section class="ms-sec"><div class="fl">Boja <button type="button" class="mini" id="m-color-reset">zadana</button></div><div id="m-color"></div>
+      <section class="ms-sec"><div class="fl">Boja <span class="fl-acts"><button type="button" class="mini" id="m-color-reset">zadana</button></span></div><div id="m-color"></div>
         <div class="ms-range ms-tint" title="Koliko su kartice ovog mjeseca obojene"><span class="tint-ic tint-0" aria-hidden="true"></span><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}" aria-label="Obojenost kartica"><span class="tint-ic tint-1" aria-hidden="true"></span></div></section>
-      <section class="ms-sec"><div class="fl">Simbol <small>– s obje strane naziva</small></div>
-        <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}</div>
-        <input class="fi" id="m-icon-custom" maxlength="12" placeholder="…ili upiši svoj: 🌧️ ✌︎ ₍ᐢ•ﻌ•ᐢ₎" value="${esc(custom || "")}" aria-label="Upiši svoj simbol">
+      <section class="ms-sec"><div class="fl">Simbol</div>
+        <div class="sym-strip" id="m-icon">${MONTH_ICONS.map(ic => `<button type="button" data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}<label class="sym-own"><span aria-hidden="true">✎</span><input id="m-icon-custom" maxlength="12" placeholder="svoj…" value="${esc(custom || "")}" aria-label="Upiši svoj simbol"></label></div>
       </section>
-      
       <section class="ms-sec ms-all"><div class="fl"><label for="m-scale">Veličina naziva</label> <small>– za sve mjesece · <span id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</span></small></div>
         <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
       </section>
@@ -685,16 +683,23 @@ function openMonthStyle(m) {
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
 
   const picker = colorPicker($("#m-color", ov), { value: monthColor(m), onPick: c => { mp().color = c; apply(); } });
+  // "Svoja boja" sits in the section header next to "zadana" – keeps the sheet short enough to need no scrolling
+  $("#m-color-reset", ov).before($(".cp-own-toggle", ov));
   const paint = () => {
     const c = monthColor(m);
     [$(".sheet", ov), $(".preview-card", ov)].forEach(el => { el.style.setProperty("--m", c); el.style.setProperty("--tint", monthTint(m)); });
     $(".preview h2", ov).innerHTML = monthTitleHtml(m);
     $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === (mp().icon || "")));
+    $(".sym-own", ov).classList.toggle("on", !!mp().icon && !MONTH_ICONS.includes(mp().icon));
     $("#m-tint", ov).value = parseInt(monthTint(m));
     $("#m-scale-v", ov).textContent = Math.round((s.monthScale || 1) * 100) + " %";
   };
   const apply = () => { saveSettings(); paint(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderList(); };
   paint();
+  { // start the symbol strip at the chosen one
+    const strip = $("#m-icon", ov), on = $(".on", strip) || $(".sym-own.on", strip);
+    if (on) strip.scrollLeft = Math.max(0, on.offsetLeft - strip.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2);
+  }
 
   $("#m-color-reset", ov).addEventListener("click", () => { delete mp().color; picker.set(monthColor(m)); apply(); });
   $("#m-tint", ov).addEventListener("input", e => { mp().tint = +e.target.value; apply(); });

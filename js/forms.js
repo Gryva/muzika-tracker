@@ -505,16 +505,8 @@ function openSettings(section) {
         </button>`).join("")}</div>
       </details>
 
-      <details class="group"><summary><span class="si-ic" aria-hidden="true">🔤</span><span class="si-label">Prikaz</span><small class="group-val" id="gv-view">${esc(rateSym())} · ${Math.round((s.monthScale || 1) * 100)} %</small></summary>
+      <details class="group"><summary><span class="si-ic" aria-hidden="true">🔤</span><span class="si-label">Prikaz</span><small class="group-val" id="gv-view">${s.cards === "open" ? "otvorene kartice" : "zatvorene kartice"}</small></summary>
       <div class="set-list">
-        <div class="set-row">
-          <div class="set-label">Simbol ocjene</div>
-          <div class="rate-syms" id="s-ratesym" role="radiogroup" aria-label="Simbol ocjene">${RATE_SYMBOLS.map(c => `<button type="button" role="radio" aria-checked="${(s.rateSymbol || "★") === c}" class="${(s.rateSymbol || "★") === c ? "on" : ""}" data-v="${c}">${c}\uFE0E</button>`).join("")}</div>
-        </div>
-        <div class="set-row">
-          <div class="set-label"><label for="s-mscale">Veličina naziva mjeseca</label><small id="s-mscale-v">${Math.round((s.monthScale || 1) * 100)} %</small></div>
-          <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="s-mscale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
-        </div>
         <div class="set-row">
           <div class="set-label">Kartice albuma</div>
           <div class="seg wide" id="s-cards">${[["collapsed", "Zatvorene"], ["open", "Uvijek otvorene"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
@@ -571,16 +563,9 @@ function openSettings(section) {
     $("#gv-style", ov).textContent = style().name;
     rerender();
   }));
-  $$("#s-ratesym button", ov).forEach(b => b.addEventListener("click", () => {
-    s.rateSymbol = b.dataset.v;
-    $$("#s-ratesym button", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", x === b); });
-    $("#gv-view", ov).textContent = `${rateSym()} · ${Math.round((s.monthScale || 1) * 100)} %`;
-    saveSettings(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderMain();
-  }));
   choice("#s-bgset", v => { setTimeout(() => { $("#gv-bg", ov).textContent = s.bg.on ? "uključena" : "isključena"; }, 0); if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
   ["density", "speed", "opacity"].forEach(k => $("#s-" + k, ov).addEventListener("change", e => { s.bg[k] = +e.target.value; s.bg.on = true; saveSettings(); }));
-    $("#s-mscale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; $("#s-mscale-v", ov).textContent = Math.round(s.monthScale * 100) + " %"; $("#gv-view", ov).textContent = `${rateSym()} · ${Math.round(s.monthScale * 100)} %`; saveSettings(); });
-  choice("#s-cards", v => { s.cards = v; state.openCards = new Set(); rerender(); });
+    choice("#s-cards", v => { $("#gv-view", ov).textContent = v === "open" ? "otvorene kartice" : "zatvorene kartice"; s.cards = v; state.openCards = new Set(); rerender(); });
 
   $("#s-backup", ov).addEventListener("click", () => {
     const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), data: state.view, pending: state.outbox }, null, 2)], { type: "application/json" });
@@ -643,20 +628,35 @@ function openMonthStyle(m) {
     <div class="month-preview-wrap"><div class="month-head preview" aria-hidden="true"><span class="month-name"><h2></h2></span><span class="month-rule"></span></div>
       <div class="card preview-card" aria-hidden="true"><div class="card-top"><div class="card-main"><div class="artist">Izvođač</div><div class="album-name">Ovako izgledaju kartice: ${esc(name)}</div></div><div class="peek"><span class="score">${rateSym()} <b>4.5</b></span></div></div></div></div>
     <div class="sheet-body">
-      <details class="ms-sec ms-fold"><summary><span class="fl">Boja</span><span class="ms-cur"><i class="ms-swatch" id="m-cur-color"></i></span></summary>
+      <div class="seg wide ms-tabs" role="tablist" aria-label="Što uređuješ">
+        <button type="button" role="tab" class="on" aria-selected="true" data-tab="one">Ovaj mjesec</button>
+        <button type="button" role="tab" aria-selected="false" data-tab="all">Svi mjeseci</button>
+      </div>
+      <div class="ms-panel" data-panel="one">
+      <section class="ms-sec"><div class="fl">Boja</div>
         <div class="swatches" id="m-color">${palette.map(c => `<button class="sw" data-c="${c}" style="background:${c}" aria-label="Boja ${c}"></button>`).join("")}
           <label class="sw sw-custom" title="Bilo koja boja" aria-label="Odaberi bilo koju boju"><input type="color" id="m-custom" value="${esc(/^#/.test(monthColor(m)) ? monthColor(m) : "#888888")}"><span aria-hidden="true">＋</span></label></div>
-      </details>
-      <details class="ms-sec ms-fold"><summary><span class="fl">Simbol</span><span class="ms-cur" id="m-cur-icon"></span></summary>
+      </section>
+      <section class="ms-sec"><div class="fl">Simbol <small>– s obje strane naziva</small></div>
         <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}</div>
         <div class="ms-row">
           <input class="fi" id="m-icon-custom" maxlength="12" placeholder="Upiši svoj: 🌧️ ✌︎ ₍ᐢ•ﻌ•ᐢ₎" value="${esc(custom || "")}" aria-label="Upiši svoj simbol">
         </div>
-      </details>
+      </section>
       <section class="ms-sec"><label class="fl" for="m-tint">Obojenost kartica</label>
         <div class="ms-range"><small>bez</small><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"><small>puno</small></div>
       </section>
       <section class="ms-sec"><label class="toggle"><input type="checkbox" id="m-hidden" ${isFolded(m) ? "checked" : ""}> Sklopi ovaj mjesec <small>(ili dodirni naziv mjeseca)</small></label></section>
+      </div>
+      <div class="ms-panel" data-panel="all" hidden>
+        <section class="ms-sec"><div class="fl"><label for="m-scale">Veličina naziva</label> <small id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</small></div>
+          <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
+        </section>
+        <section class="ms-sec"><div class="fl">Simbol ocjene</div>
+          <div class="rate-syms" id="m-ratesym" role="radiogroup" aria-label="Simbol ocjene">${RATE_SYMBOLS.map(c => `<button type="button" role="radio" data-v="${c}">${c}\uFE0E</button>`).join("")}</div>
+        </section>
+        <p class="hint">Ove promjene vrijede za sve mjesece.</p>
+      </div>
     </div>
     <div class="form-actions"><button class="btn btn-ghost" id="m-reset">Vrati zadano</button><button class="btn btn-primary" data-close>Gotovo</button></div>
   </div>`;
@@ -674,8 +674,9 @@ function openMonthStyle(m) {
     $(".sw-custom", ov).classList.toggle("on", !$$("#m-color .sw[data-c]", ov).some(x => x.classList.contains("on")));
     $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === (mp().icon || "")));
     $("#m-tint", ov).value = parseInt(monthTint(m));
-    $("#m-cur-color", ov).style.background = c;
-    $("#m-cur-icon", ov).textContent = mp().icon || "bez";
+    $(".preview-card .score", ov).innerHTML = `${rateSym()} <b>4.5</b>`;
+    $$("#m-ratesym button", ov).forEach(x => { const on = x.dataset.v === (s.rateSymbol || "★"); x.classList.toggle("on", on); x.setAttribute("aria-checked", on); });
+    $("#m-scale-v", ov).textContent = Math.round((s.monthScale || 1) * 100) + " %";
   };
   const apply = () => { saveSettings(); paint(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderList(); };
   paint();
@@ -691,6 +692,14 @@ function openMonthStyle(m) {
     mp().icon = v; apply();
   });
   $("#m-hidden", ov).addEventListener("change", e => { mp().hidden = e.target.checked; apply(); });
+  // tabs: this month / all months
+  $$(".ms-tabs button", ov).forEach(b => b.addEventListener("click", () => {
+    $$(".ms-tabs button", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", x === b); });
+    $$(".ms-panel", ov).forEach(pn => pn.hidden = pn.dataset.panel !== b.dataset.tab);
+  }));
+  // for every month: name size + rating symbol, seen live in the preview and the list behind
+  $("#m-scale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; apply(); });
+  $$("#m-ratesym button", ov).forEach(b => b.addEventListener("click", () => { s.rateSymbol = b.dataset.v; apply(); }));
   $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; $("#m-icon-custom", ov).value = ""; apply(); $("#m-hidden", ov).checked = isFolded(m); });
 }
 

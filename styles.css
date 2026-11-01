@@ -2384,3 +2384,12 @@ button.logo:active { transform: scale(.96); }
 [data-style="skeu"] .rate-syms button { background: linear-gradient(180deg, #E8C9A0, var(--sk-wood)); border: none; box-shadow: 0 3px 0 var(--sk-leather); color: var(--sk-ink-dark); }
 [data-style="glitch"] .rate-syms button { border: 1px solid #FFF; border-radius: 0; background: transparent; color: #FFF; }
 [data-style="glitch"] .rate-syms button.on { background: #FFF; color: #000; }
+
+/* ═════════════ v24: month panel – "Ovaj mjesec" / "Svi mjeseci" tabs ═════════════ */
+.ms-tabs { margin: 2px 0 6px; }
+.ms-panel[hidden] { display: none; }
+.ms-panel { animation: fadeIn .2s ease; }
+.ms-panel > .ms-sec:first-child { border-top: none; }
+.ms-panel .hint { margin: 4px 0 0; }
+.month-sheet .ms-tabs button.on { background: var(--accent); color: var(--on-accent); }
+@media (prefers-reduced-motion: reduce) { .ms-panel { animation: none; } }

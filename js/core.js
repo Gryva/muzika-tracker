@@ -122,6 +122,9 @@ function loadStyleFont(st) {
   l.rel = "stylesheet"; l.href = st.fontHref;
   document.head.appendChild(l);
 }
+/** Rating symbols (text glyphs, forced to text style with U+FE0E so they can be half-filled). */
+const RATE_SYMBOLS = ["★", "♥", "●", "◆", "✦", "♪", "✿", "☾"];
+const rateSym = () => (RATE_SYMBOLS.includes(state.settings.rateSymbol) ? state.settings.rateSymbol : "★") + "\uFE0E";
 const MONTH_ICONS = ["", "❄", "♥", "✿", "☂", "❀", "☀", "⛱", "✦", "🍂", "☾", "☁", "★", "♪", "📼", "📷"];
 const style = () => STYLES[state.settings.style] || STYLES.default;
 const DEFAULT_SETTINGS = {
@@ -130,6 +133,7 @@ const DEFAULT_SETTINGS = {
   font: "auto",           // auto = the style's own font
   cards: "collapsed",     // collapsed | open
   monthScale: 1,          // size of month names, 0.7 – 1.5
+  rateSymbol: "★",        // symbol used for ratings
   tint: null,             // null = the style's tint
   months: {},             // per-month tweaks: { "11": { color, tint, icon, hidden } }
   yearsFolded: {},        // { "2025": true } – years start open

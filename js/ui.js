@@ -14,12 +14,12 @@ function avatar(name, size) {
 }
 function starsHtml(v) {
   let h = "";
-  for (let i = 0; i < 5; i++) h += `<b style="--f:${Math.round(Math.max(0, Math.min(1, v - i)) * 100)}%">★</b>`;
+  for (let i = 0; i < 5; i++) h += `<b style="--f:${Math.round(Math.max(0, Math.min(1, v - i)) * 100)}%">${rateSym()}</b>`;
   return `<span class="stars">${h}</span>`;
 }
 function ratingHtml(r) {
   const p = parseRating(r);
-  if (!p) return r ? `<span class="chip">★ ${esc(r)}</span>` : "";
+  if (!p) return r ? `<span class="chip">${rateSym()} ${esc(r)}</span>` : "";
   return `${starsHtml(p.v)}<span class="rating-num">${esc(fmtRating(p.v, p.plus))}</span>`;
 }
 function recHtml(r) {
@@ -99,7 +99,7 @@ function renderTabs() {
       <button class="who-btn" id="who-btn" aria-expanded="${!!state.whoOpen}" aria-controls="who-menu">
         ${label}${anyNew ? `<i class="dot" aria-label="Nova aktivnost"></i>` : ""}<span class="chev" aria-hidden="true"></span>
       </button>
-      <span class="who-stats">${stats}</span>
+
     </div>
     <div class="who-menu ${state.whoOpen ? "open" : ""}" id="who-menu" ${state.whoOpen ? "" : "hidden"}>
       ${order.map(n => `<button class="who-item ${cur === n ? "active" : ""}" data-tab="${esc(n)}">${avatar(n, 30)}<span>${isMe(n) ? "Ja" : esc(n)}</span><small>${count(n)}</small>${hasNew(n) && cur !== n ? `<i class="dot"></i>` : ""}</button>`).join("")}
@@ -229,7 +229,7 @@ function parseStandouts(text) {
 function scoreHtml(r) {
   if (!r) return "";
   const p = parseRating(r);
-  return `<span class="score" title="Ocjena ${esc(r)}">★ <b>${esc(p ? fmtRating(p.v, p.plus) : r)}</b></span>`;
+  return `<span class="score" title="Ocjena ${esc(r)}">${rateSym()} <b>${esc(p ? fmtRating(p.v, p.plus) : r)}</b></span>`;
 }
 
 function cardHtml(a, i) {
@@ -251,7 +251,7 @@ function cardHtml(a, i) {
   const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
   const st = parseStandouts(tracks);
   // when open, the quick facts move up into the card's head; the body keeps the words
-  const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}${a.mark ? `<span class="f-rec"><span class="mark-pill mark-${a.mark}">${a.mark === "first" ? "prvi put" : "ponovno"}</span></span>` : ""}</div>` : "";
+  const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>${rateSym()} ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}${a.mark ? `<span class="f-rec"><span class="mark-pill mark-${a.mark}">${a.mark === "first" ? "prvi put" : "ponovno"}</span></span>` : ""}</div>` : "";
   const moreOpen = state.moreFor === a.key;
 
   return `
@@ -517,7 +517,7 @@ function renderListen(main) {
         return `<div class="ll-item ${done ? "done" : ""}" style="animation-delay:${Math.min(i, 10) * 30}ms">
           <div class="ll-main">
             <div class="ll-title">${esc(l.artist)}${l.album ? ` <span>– ${esc(l.album)}</span>` : ""}</div>
-            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} predlaže · ` : ""}${timeAgo(l.ts)}${l.note ? ` · ${esc(l.note)}` : ""}${done ? ` · ✓ poslušano${done.rating ? " ★" + esc(done.rating) : ""}` : ""}</div>
+            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} predlaže · ` : ""}${timeAgo(l.ts)}${l.note ? ` · ${esc(l.note)}` : ""}${done ? ` · ✓ poslušano${done.rating ? " " + rateSym() + esc(done.rating) : ""}` : ""}</div>
           </div>
           ${forMe && !done ? `<button class="mini" data-ll-log="${esc(l.id)}">🎧 Upiši</button>` : ""}
           ${canWrite() && (forMe || isMe(l.addedBy)) ? `<button class="mini danger" data-ll-del="${esc(l.id)}" title="Makni" aria-label="Makni s liste">✕</button>` : ""}

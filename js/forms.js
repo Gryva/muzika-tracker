@@ -41,7 +41,6 @@ function welcomeHtml() {
       <li><span class="r-ic" aria-hidden="true">🙅</span><span><b>Ne brišemo tuđe albume.</b> Ali komentari i reakcije na tuđe albume – itekako! 💬</span></li>
       <li><span class="r-ic"><span class="mark-dot mark-first big" aria-hidden="true"></span></span><span><b>Ljubičasto</b> = izvođač kojeg slušaš <b>prvi put</b>. Npr. nikad nisi čuo/la ništa od Živog Blata i poslušaš album.</span></li>
       <li><span class="r-ic"><span class="mark-dot mark-re big" aria-hidden="true"></span></span><span><b>Plavo</b> = album koji slušaš <b>ponovno</b>. Npr. odlučiš se na relistening Konca Konca.</span></li>
-      <li><span class="r-ic" aria-hidden="true">⏱️</span><span>Trajanje albuma je poželjno.</span></li>
       <li><span class="r-ic" aria-hidden="true">🔗</span><span>Šeranje linka dobrim ljudima je dobro došlo!</span></li>
     </ul>
     <p class="welcome-sign">Zabavite se i vidimo se u tablicama!<br><small>– moderator, <b>Osto</b></small></p>

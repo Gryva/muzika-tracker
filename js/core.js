@@ -31,6 +31,8 @@ const BG_SETS = {
   film:    ["📼", "🎞", "✶", "◐", "▭", "◉", "⋆", "♪"],
   nature:  ["🍃", "🌿", "❀", "☘", "🌱", "✿", "🍂", "·"],
   geo:     ["▲", "■", "●", "◆", "✚", "▰", "◢", "⬣"],
+  memphis: ["▲", "●", "∿", "✚", "◗", "■", "〰", "◢"],
+  glitch:  ["▮", "▯", "▚", "░", "▒", "⌁", "◧", "▞"],
   shapes:  ["○", "△", "□", "◇", "✕", "◯", "⬡", "◠"],
   mix:     ["♪", "♫", "✦", "⋆", "☾", "◯", "ʕ•ᴥ•ʔ", "𝄞", "✧"]
 };
@@ -92,6 +94,25 @@ const STYLES = {
     font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 100,
     monthColors: ["#00FFFF", "#BF00FF", "#39FF14", "#FFAA00", "#FF1493", "#CCFF00", "#FF7F00", "#FF006E", "#00FFFF", "#FFAA00", "#BF00FF", "#39FF14"],
     bgSet: "geo", swatch: ["#0D0D0D", "#39FF14", "#BF00FF", "#FF1493"], themeColor: "#0D0D0D"
+  },
+  memphis: {
+    name: "Memphis", desc: "80-e: oblici, vijuge, točkice", accent: "#FF71CE",
+    font: "'Futura', 'Jost', 'League Spartan', 'Avenir Next', sans-serif", tint: 100,
+    fontHref: "https://fonts.googleapis.com/css2?family=Jost:wght@500;700;900&display=swap",
+    monthColors: ["#86CCCA", "#FF71CE", "#FFCE5C", "#4ECDC4", "#FF6B6B", "#6A7BB4", "#FFCE5C", "#FF71CE", "#86CCCA", "#FF6B6B", "#6A7BB4", "#4ECDC4"],
+    bgSet: "memphis", swatch: ["#FF71CE", "#FFCE5C", "#86CCCA", "#6A7BB4"], themeColor: "#FFFEF7"
+  },
+  glitch: {
+    name: "Glitch", desc: "RGB razdvajanje, VHS, šum", accent: "#00FFFF",
+    font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 10,
+    monthColors: ["#00FFFF", "#FF00FF", "#39FF14", "#FF3B3B", "#4D7CFF", "#FFFF00", "#00FFFF", "#FF00FF", "#39FF14", "#FF3B3B", "#4D7CFF", "#FFFF00"],
+    bgSet: "glitch", swatch: ["#0A0A0A", "#FF0000", "#00FFFF", "#FF00FF"], themeColor: "#0A0A0A"
+  },
+  skeu: {
+    name: "Koža i drvo", desc: "Koža, drvo, papir, mjedeni zakovci", accent: "#CD853F",
+    font: "Georgia, 'Times New Roman', serif", tint: 0,
+    monthColors: ["#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E"],
+    bgSet: "off", swatch: ["#8B4513", "#DEB887", "#FFFEF9", "#B8860B"], themeColor: "#654321"
   }
 };
 /** Web fonts are only fetched when someone actually picks a style that needs one. */

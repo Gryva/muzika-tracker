@@ -2075,3 +2075,283 @@ button.logo:active { transform: scale(.96); }
 [data-style="nature"] .set-card { background: rgba(255, 255, 255, .5); border-color: rgba(34, 139, 34, .18); }
 [data-style="vivid"] .set-card { background: #161616; border: 2px solid #2A2A2A; }
 [data-style="vivid"] .pc-btn { border: 2px solid #2A2A2A; }
+
+/* ═════════════════════════════════════════════════════════════════════
+   STYLE: Memphis – 80s Memphis Group: dot paper, clashing pastels, black outlines,
+   hard shadows, slightly rotated cards, triangles and squiggles
+   ═════════════════════════════════════════════════════════════════════ */
+[data-style="memphis"] {
+  --memphis-pink: #FF71CE; --memphis-yellow: #FFCE5C; --memphis-teal: #86CCCA; --memphis-periwinkle: #6A7BB4;
+  --memphis-coral: #FF6B6B; --memphis-aqua: #4ECDC4; --memphis-paper: #FFFEF7;
+  --bg: var(--memphis-paper); --surface: #FFFFFF; --surface-2: #111; --surface-3: #111;
+  --text: #111111; --text-2: #1F1F1F; --text-3: #3A3A3A;
+  --accent: var(--memphis-pink); --on-accent: #000; --danger: #B00020; --success: #14532D; --warning: #7A4300;
+  --star: #111; --star-off: rgba(0, 0, 0, .2);
+  --radius: 0; --radius-sm: 0; --round: 999px; --av-radius: 50%;
+  --soft: rgba(0, 0, 0, .12); --sunk: #FFFFFF; --header-bg: var(--memphis-yellow); --scrim: rgba(17, 17, 17, .45);
+  --shadow: 8px 8px 0 #000; --mh: clamp(30px, 8vw, 44px);
+  --squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 14'%3E%3Cpath d='M0 7 Q5 0 10 7 T20 7 T30 7 T40 7' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  color-scheme: light;
+}
+[data-style="memphis"] body {
+  background-color: var(--memphis-paper);
+  background-image: radial-gradient(var(--memphis-periwinkle) 2px, transparent 2px);
+  background-size: 32px 32px; color: #111;
+}
+[data-style="memphis"] :focus-visible { outline: 4px dashed #000; outline-offset: 6px; }
+[data-style="memphis"] h1, [data-style="memphis"] h2, [data-style="memphis"] button.logo, [data-style="memphis"] .sheet-title, [data-style="memphis"] .login-title { font-weight: 900; text-transform: uppercase; line-height: 1; letter-spacing: .01em; }
+[data-style="memphis"] .header { border-bottom: 4px solid #000; backdrop-filter: none; }
+[data-style="memphis"] .tabs { --bar-bg: var(--memphis-paper); border-bottom: 3px solid #000; backdrop-filter: none;
+  background-image: repeating-linear-gradient(45deg, rgba(0,0,0,.07) 0 4px, transparent 4px 10px); }
+/* buttons: pink with a periwinkle shadow, press-in */
+[data-style="memphis"] .btn, [data-style="memphis"] .who-btn, [data-style="memphis"] .rx, [data-style="memphis"] .link, [data-style="memphis"] .track,
+[data-style="memphis"] .choice button, [data-style="memphis"] .icons button, [data-style="memphis"] .style-card, [data-style="memphis"] .pc-btn,
+[data-style="memphis"] .more-menu button, [data-style="memphis"] .mark-chip, [data-style="memphis"] .user-btn, [data-style="memphis"] .month-gear {
+  border: 3px solid #000; background: #FFF; color: #000; font-weight: 800; box-shadow: 4px 4px 0 var(--memphis-periwinkle);
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+[data-style="memphis"] .btn:active, [data-style="memphis"] .who-btn:active, [data-style="memphis"] .rx:active, [data-style="memphis"] .track:active,
+[data-style="memphis"] .choice button:active, [data-style="memphis"] .pc-btn:active, [data-style="memphis"] .mark-chip:active, [data-style="memphis"] .month-gear:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--memphis-periwinkle); }
+[data-style="memphis"] .btn-primary { background: var(--memphis-pink); }
+[data-style="memphis"] .choice button.on, [data-style="memphis"] .icons button.on, [data-style="memphis"] .style-card.on, [data-style="memphis"] .rx.mine,
+[data-style="memphis"] .who-item.active, [data-style="memphis"] .seg button.on { background: var(--memphis-yellow); color: #000; }
+[data-style="memphis"] .seg { border: 3px solid #000; border-radius: 999px; }
+[data-style="memphis"] .seg button + button { border-left: 3px solid #000; }
+[data-style="memphis"] .seg button { color: #000; font-weight: 800; }
+[data-style="memphis"] .av { border: 2px solid #000; color: #000; }
+[data-style="memphis"] .btn-me .av { border-width: 3px; box-shadow: 3px 3px 0 #000; }
+[data-style="memphis"] .badge { background: var(--memphis-coral); color: #000; border: 2px solid #000; }
+[data-style="memphis"] .dot { background: var(--memphis-coral); border: 2px solid #000; animation: none; }
+[data-style="memphis"] .who-menu { border: 3px solid #000; border-radius: 0; box-shadow: 8px 8px 0 #000; }
+/* months: a triangle, a block of colour behind the name, a squiggle instead of a rule */
+[data-style="memphis"] .month .month-head h2 { display: inline-block; position: relative; padding: .08em .32em .12em; background: var(--m); border: 3px solid #000; box-shadow: 6px 6px 0 #000; transform: rotate(-2deg); }
+[data-style="memphis"] .month:nth-child(even) .month-head h2 { transform: rotate(1.5deg); }
+[data-style="memphis"] .month .month-head h2::after {
+  content: ""; position: absolute; right: -16px; top: -14px; width: 26px; height: 22px; background: var(--memphis-aqua);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%); transform: rotate(14deg);
+}
+[data-style="memphis"] .month.folded .month-head h2 { background: #FFF; box-shadow: 4px 4px 0 #000; }
+[data-style="memphis"] .month.folded .month-head h2::after { display: none; }
+[data-style="memphis"] .month-rule { height: 14px; border-radius: 0; background: #000; -webkit-mask: var(--squiggle) repeat-x center / 40px 14px; mask: var(--squiggle) repeat-x center / 40px 14px; }
+[data-style="memphis"] .month-head .month-count { background: #000; color: #FFF; border-radius: 999px; height: 28px; min-width: 30px; font-weight: 900; }
+[data-style="memphis"] .month .month-gear { border-radius: 50%; width: 38px; height: 38px; }
+[data-style="memphis"] .year-num { font-weight: 900; } [data-style="memphis"] .year-head::after { height: 3px; background: #000; }
+/* cards: outlined, hard shadow, a little rotated (opened ones straighten up to read) */
+[data-style="memphis"] .album-list { gap: 18px; padding: 4px 6px 8px 2px; }
+[data-style="memphis"] .card, [data-style="memphis"] .card.open {
+  background: color-mix(in srgb, var(--m) var(--tint), #FFF); border: 3px solid #000; border-radius: 0; box-shadow: 8px 8px 0 #000; color: #000;
+  transform: rotate(-.8deg); transition: transform .2s var(--ease);
+}
+[data-style="memphis"] .card:nth-child(even) { transform: rotate(.8deg); }
+[data-style="memphis"] .card.open { transform: none; }
+[data-style="memphis"] .card .artist { color: #000; font-weight: 800; letter-spacing: .08em; }
+[data-style="memphis"] .card .album-name { font-weight: 900; text-transform: uppercase; font-size: 16px; }
+[data-style="memphis"] .score, [data-style="memphis"] .score b, [data-style="memphis"] .rating-num, [data-style="memphis"] .facts, [data-style="memphis"] .mini-label,
+[data-style="memphis"] figure.own figcaption, [data-style="memphis"] .peek { color: #000; }
+[data-style="memphis"] .card-more { border-top: 3px dashed #000; }
+[data-style="memphis"] blockquote.impression { border-left: none; background: #FFF; border: 3px solid #000; padding: 10px 14px; box-shadow: 4px 4px 0 var(--memphis-pink); font-style: normal; font-weight: 500; }
+[data-style="memphis"] .card-more .thread { background: #FFF; border: 3px solid #000; border-radius: 0; }
+[data-style="memphis"] .track .play { border: 2px solid #000; }
+[data-style="memphis"] .mark-pill { border: 2px solid #000; color: #FFF; }
+[data-style="memphis"] .fi, [data-style="memphis"] .ft, [data-style="memphis"] .cmt-form input { background: #FFF; border: 3px solid #000; border-radius: 0; color: #000; }
+[data-style="memphis"] .sheet, [data-style="memphis"] .panel, [data-style="memphis"] .login-box { background: #FFFEF7; border: 4px solid #000; box-shadow: 10px 10px 0 #000; }
+[data-style="memphis"] .sheet-header, [data-style="memphis"] .panel-head { background: var(--memphis-teal); border-bottom: 4px solid #000; }
+[data-style="memphis"] .form-actions { background: #FFFEF7; border-top: 4px solid #000; }
+[data-style="memphis"] .set-card { border: 3px solid #000; border-radius: 0; background: #FFF; box-shadow: 6px 6px 0 var(--memphis-periwinkle); }
+[data-style="memphis"] .set-item + .set-item, [data-style="memphis"] .set-card > .group { border-top: 3px solid #000; }
+[data-style="memphis"] .set-card > .group:first-child { border-top: none; }
+[data-style="memphis"] .toast { background: #000; color: var(--memphis-yellow); border-radius: 0; box-shadow: 6px 6px 0 var(--memphis-pink); }
+[data-style="memphis"] .login { background-color: var(--memphis-teal); background-image: radial-gradient(#000 2px, transparent 2px); background-size: 28px 28px; }
+[data-style="memphis"] .dock { background: linear-gradient(to top, var(--memphis-paper) 60%, transparent); }
+[data-style="memphis"] .dock-btn {
+  border: 4px solid #000; border-radius: 0; background: var(--memphis-pink); color: #000; font-weight: 900; text-transform: uppercase; font-size: 19px;
+  box-shadow: 8px 8px 0 var(--memphis-periwinkle); transition: transform 100ms ease, box-shadow 100ms ease;
+}
+[data-style="memphis"] .dock-btn:hover { transform: none; }
+[data-style="memphis"] .dock-btn:active { transform: translate(4px, 4px); box-shadow: 4px 4px 0 var(--memphis-periwinkle); }
+/* decorative stripes + triangle only in the empty side margins of wide screens */
+@media (min-width: 1100px) {
+  [data-style="memphis"] body::before { content: ""; position: fixed; left: 40px; top: 30vh; width: 64px; height: 160px; pointer-events: none; background: repeating-linear-gradient(45deg, #000 0 5px, transparent 5px 10px); }
+  [data-style="memphis"] body::after { content: ""; position: fixed; right: 50px; bottom: 18vh; width: 90px; height: 80px; pointer-events: none; background: var(--memphis-aqua); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-style="memphis"] .card, [data-style="memphis"] .btn, [data-style="memphis"] .dock-btn { transition: none; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   STYLE: Glitch – chromatic aberration: red/cyan split on display type with a short
+   channel-swap burst, hover jitter, scanlines + slow flicker only on the colour bars
+   ═════════════════════════════════════════════════════════════════════ */
+[data-style="glitch"] {
+  --g-red: #FF0000; --g-green: #00FF00; --g-blue: #0000FF; --g-cyan: #00FFFF; --g-magenta: #FF00FF;
+  --bg: #0A0A0A; --surface: #111111; --surface-2: #2A2A2A; --surface-3: #333;
+  --text: #FFFFFF; --text-2: #C4C8CF; --text-3: #9CA3AF;
+  --accent: var(--g-cyan); --on-accent: #000; --danger: #FF5C7A; --success: #39FF14; --warning: #FFD60A;
+  --star: #FFFFFF; --star-off: #333;
+  --radius: 0; --radius-sm: 0; --round: 0; --av-radius: 0;
+  --soft: rgba(255, 255, 255, .1); --sunk: rgba(255, 255, 255, .04); --header-bg: rgba(10, 10, 10, .94); --scrim: rgba(0, 0, 0, .75);
+  --shadow: none; --mh: clamp(30px, 8vw, 44px);
+  color-scheme: dark;
+}
+[data-style="glitch"] body { background: #0A0A0A; color: #9CA3AF; }
+[data-style="glitch"] :focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 3px; }
+[data-style="glitch"] button.logo, [data-style="glitch"] .month .month-head h2, [data-style="glitch"] .sheet-title, [data-style="glitch"] .login-title, [data-style="glitch"] .year-num {
+  color: #FFF; font-weight: 900; text-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); animation: rgb-split 3s steps(1) infinite;
+}
+[data-style="glitch"] .month .month-head h2 { text-transform: uppercase; letter-spacing: .02em; }
+@keyframes rgb-split {
+  0%, 100% { text-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); }
+  94% { text-shadow: 3px 0 var(--g-red), -3px 0 var(--g-cyan); }
+  97% { text-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); }
+}
+@keyframes glitch-jit { 0%, 90%, 100% { transform: translate(0); } 93% { transform: translate(-2px, 1px); } 97% { transform: translate(2px, -1px); } }
+@keyframes scan { to { background-position: 0 60px; } }
+@keyframes flicker { 0%, 100% { opacity: 1; } 48% { opacity: .9; } 52% { opacity: 1; } }
+[data-style="glitch"] .header { border-bottom: 1px solid #222; }
+[data-style="glitch"] .tabs { --bar-bg: rgba(10, 10, 10, .94); border-bottom: 1px solid #222; }
+/* buttons: outlined, uppercase, split text, jitter on hover */
+[data-style="glitch"] .btn, [data-style="glitch"] .who-btn, [data-style="glitch"] .rx, [data-style="glitch"] .link, [data-style="glitch"] .track,
+[data-style="glitch"] .pc-btn, [data-style="glitch"] .more-menu button, [data-style="glitch"] .mark-chip, [data-style="glitch"] .choice button, [data-style="glitch"] .month-gear {
+  border: 1px solid #FFF; border-radius: 0; background: transparent; color: #FFF; text-shadow: -1px 0 var(--g-red), 1px 0 var(--g-cyan);
+}
+[data-style="glitch"] .btn, [data-style="glitch"] .who-btn, [data-style="glitch"] .pc-btn, [data-style="glitch"] .more-menu button { text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+[data-style="glitch"] .btn:hover, [data-style="glitch"] .who-btn:hover, [data-style="glitch"] .rx:hover, [data-style="glitch"] .track:hover,
+[data-style="glitch"] .pc-btn:hover, [data-style="glitch"] .month-gear:hover, [data-style="glitch"] .dock-btn:hover { animation: glitch-jit .3s infinite; }
+[data-style="glitch"] .btn-primary { background: #FFF; color: #000; text-shadow: none; box-shadow: -3px 0 var(--g-red), 3px 0 var(--g-cyan); }
+[data-style="glitch"] .choice button.on, [data-style="glitch"] .icons button.on, [data-style="glitch"] .style-card.on, [data-style="glitch"] .rx.mine,
+[data-style="glitch"] .seg button.on, [data-style="glitch"] .who-item.active { background: #FFF; color: #000; text-shadow: none; box-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); }
+[data-style="glitch"] .rx small, [data-style="glitch"] .track small { color: inherit; }
+[data-style="glitch"] .av { box-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); color: #000; }
+[data-style="glitch"] .badge { background: var(--g-magenta); color: #000; border-radius: 0; }
+[data-style="glitch"] .dot { background: var(--g-magenta); animation: none; border-radius: 0; }
+[data-style="glitch"] .who-menu { background: #0A0A0A; border: 1px solid #FFF; box-shadow: -3px 0 var(--g-red), 3px 0 var(--g-cyan); }
+/* month bar = the "media": an RGB bar with drifting scanlines and a slow, gentle flicker (no text on it) */
+[data-style="glitch"] .month-rule {
+  height: 6px; border-radius: 0; position: relative; overflow: hidden;
+  background: linear-gradient(90deg, var(--g-red), var(--g-green), var(--g-blue), transparent); animation: flicker 4s steps(1) infinite;
+}
+[data-style="glitch"] .month-rule::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(0,0,0,.35) 0 1px, transparent 1px 3px); animation: scan 8s linear infinite; }
+[data-style="glitch"] .month-head .month-count { background: none; border: 1px solid var(--m); color: #FFF; border-radius: 0; }
+[data-style="glitch"] .year-head::after { background: linear-gradient(90deg, var(--g-red), var(--g-cyan)); height: 1px; }
+/* cards: near-black slabs with a coloured edge */
+[data-style="glitch"] .card, [data-style="glitch"] .card.open {
+  background: #111; border: 1px solid #262626; border-left: 3px solid var(--m); border-radius: 0; box-shadow: none;
+}
+[data-style="glitch"] .card:has(.card-top:hover) { box-shadow: -2px 0 rgba(255, 0, 0, .5), 2px 0 rgba(0, 255, 255, .5); }
+[data-style="glitch"] .card .artist { color: var(--m); letter-spacing: .14em; }
+[data-style="glitch"] .card .album-name { color: #FFF; font-weight: 800; }
+[data-style="glitch"] .score, [data-style="glitch"] .score b { color: #FFF; }
+[data-style="glitch"] blockquote.impression { border-left: 2px solid var(--g-magenta); color: #E5E7EB; font-style: normal; }
+[data-style="glitch"] .card-more .thread { background: #0A0A0A; border: 1px solid #262626; }
+[data-style="glitch"] .track .play { border-radius: 0; background: var(--g-red); }
+[data-style="glitch"] .fi, [data-style="glitch"] .ft, [data-style="glitch"] .cmt-form input { background: #0A0A0A; border: 1px solid #444; border-radius: 0; color: #FFF; }
+[data-style="glitch"] .fi:focus, [data-style="glitch"] .ft:focus { border-color: var(--g-cyan); box-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); }
+[data-style="glitch"] .sheet, [data-style="glitch"] .panel, [data-style="glitch"] .login-box { background: #0A0A0A; border: 1px solid #333; }
+[data-style="glitch"] .sheet-header, [data-style="glitch"] .form-actions, [data-style="glitch"] .panel-head { background: #0A0A0A; border-color: #222; }
+[data-style="glitch"] .set-card { background: #111; border: 1px solid #2A2A2A; border-radius: 0; }
+[data-style="glitch"] .toast { background: #FFF; color: #000; border-radius: 0; box-shadow: -3px 0 var(--g-red), 3px 0 var(--g-cyan); }
+[data-style="glitch"] .dock { background: linear-gradient(to top, #0A0A0A 60%, transparent); }
+[data-style="glitch"] .dock-btn { border-radius: 0; background: transparent; border: 1px solid #FFF; color: #FFF; text-transform: uppercase; letter-spacing: .1em; font-weight: 800;
+  text-shadow: -2px 0 var(--g-red), 2px 0 var(--g-cyan); box-shadow: -3px 0 rgba(255,0,0,.6), 3px 0 rgba(0,255,255,.6); }
+@media (prefers-reduced-motion: reduce) {
+  [data-style="glitch"] *, [data-style="glitch"] *::after { animation: none !important; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   STYLE: Koža i drvo (Skeuomorphism) – leather desk, wooden plaques with brass studs,
+   ruled paper cards, bevelled wooden buttons that press in
+   ═════════════════════════════════════════════════════════════════════ */
+[data-style="skeu"] {
+  --sk-leather: #8B4513; --sk-tan: #CD853F; --sk-sienna: #A0522D; --sk-chocolate: #D2691E; --sk-wood: #DEB887;
+  --sk-leather-dark: #654321; --sk-ink-dark: #3B1F0A; --sk-paper: #FFFEF9; --sk-ink: #1F2937;
+  --sk-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --sk-woodgrain: repeating-linear-gradient(92deg, rgba(101, 67, 33, .12) 0 2px, transparent 2px 9px, rgba(101, 67, 33, .08) 9px 10px, transparent 10px 17px);
+  --bg: var(--sk-leather-dark); --surface: var(--sk-paper); --surface-2: rgba(101, 67, 33, .3); --surface-3: #E8E4C9;
+  --text: #FEF3C7; --text-2: #F5E6C4; --text-3: #E7D3A8;
+  --accent: var(--sk-tan); --on-accent: var(--sk-ink-dark); --danger: #9B1C1C; --success: #3F6212; --warning: #92400E;
+  --star: #B8860B; --star-off: rgba(101, 67, 33, .22);
+  --radius: 8px; --radius-sm: 6px; --round: 6px; --av-radius: 50%;
+  --soft: rgba(254, 243, 199, .14); --sunk: rgba(0, 0, 0, .18); --header-bg: rgba(74, 46, 22, .96); --scrim: rgba(30, 15, 5, .6);
+  --shadow: 0 20px 50px rgba(0, 0, 0, .5); --mh: clamp(24px, 6.5vw, 32px);
+  color-scheme: dark;
+}
+[data-style="skeu"] body { background: var(--sk-noise), linear-gradient(180deg, var(--sk-leather) 0%, var(--sk-leather-dark) 100%) fixed; color: #FEF3C7; }
+[data-style="skeu"] :focus-visible { outline: 3px solid var(--sk-ink-dark); outline-offset: 2px; box-shadow: 0 0 0 2px var(--sk-paper); }
+[data-style="skeu"] button.logo, [data-style="skeu"] .year-num { color: #FEF3C7; text-shadow: 2px 2px 4px rgba(0, 0, 0, .5); font-family: Georgia, serif; font-weight: 700; }
+/* header: darker leather with a stitched seam */
+[data-style="skeu"] .header { background: var(--sk-noise), linear-gradient(180deg, #5A3A1C, #4A2E16); border-bottom: 2px dashed rgba(254, 243, 199, .35); box-shadow: 0 4px 10px rgba(0, 0, 0, .35); }
+[data-style="skeu"] .tabs { --bar-bg: rgba(74, 46, 22, .96); border-bottom: 1px solid rgba(0, 0, 0, .3); }
+/* everything you press is a bevelled bit of wood */
+[data-style="skeu"] .btn, [data-style="skeu"] .who-btn, [data-style="skeu"] .rx, [data-style="skeu"] .link, [data-style="skeu"] .track, [data-style="skeu"] .pc-btn,
+[data-style="skeu"] .more-menu button, [data-style="skeu"] .mark-chip, [data-style="skeu"] .choice button, [data-style="skeu"] .icons button, [data-style="skeu"] .month-gear,
+[data-style="skeu"] .user-btn, [data-style="skeu"] .style-card, [data-style="skeu"] .date-btn {
+  border: none; border-radius: 6px; background: linear-gradient(180deg, #E8C9A0, var(--sk-wood)); color: var(--sk-leather-dark);
+  box-shadow: 0 3px 0 var(--sk-leather), inset 0 1px 0 rgba(255, 255, 255, .35); text-shadow: 0 1px 0 rgba(255, 255, 255, .3);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+[data-style="skeu"] .btn:hover, [data-style="skeu"] .rx:hover, [data-style="skeu"] .track:hover, [data-style="skeu"] .pc-btn:hover { background: linear-gradient(180deg, #F0D6B4, #E8C9A0); }
+[data-style="skeu"] .btn:active, [data-style="skeu"] .who-btn:active, [data-style="skeu"] .rx:active, [data-style="skeu"] .track:active, [data-style="skeu"] .pc-btn:active,
+[data-style="skeu"] .choice button:active, [data-style="skeu"] .mark-chip:active, [data-style="skeu"] .month-gear:active, [data-style="skeu"] .dock-btn:active {
+  transform: translateY(3px); box-shadow: 0 0 0 var(--sk-leather), inset 0 2px 4px rgba(0, 0, 0, .25);
+}
+[data-style="skeu"] .choice button.on, [data-style="skeu"] .icons button.on, [data-style="skeu"] .style-card.on, [data-style="skeu"] .rx.mine, [data-style="skeu"] .seg button.on {
+  background: linear-gradient(180deg, #C69565, #B5814F); color: var(--sk-ink-dark); transform: translateY(2px); box-shadow: 0 1px 0 var(--sk-leather), inset 0 2px 4px rgba(0, 0, 0, .3);
+}
+[data-style="skeu"] .btn-primary { background: linear-gradient(180deg, #D79A5A, var(--sk-tan)); color: var(--sk-ink-dark); }
+[data-style="skeu"] .av { box-shadow: 0 0 0 2px #E8C9A0, 0 2px 4px rgba(0, 0, 0, .4); color: var(--sk-ink-dark); }
+[data-style="skeu"] .badge { background: radial-gradient(circle at 30% 30%, #FFD700, #B8860B); color: var(--sk-ink-dark); }
+[data-style="skeu"] .dot { background: radial-gradient(circle at 30% 30%, #FFD700, #B8860B); animation: none; box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+[data-style="skeu"] .who-stats { color: #E7D3A8; }
+/* month: an engraved wooden plaque with brass studs; the rule becomes a leather stitch */
+[data-style="skeu"] .month .month-head h2 {
+  position: relative; display: inline-block; padding: .22em .9em .26em; border-radius: 6px; color: var(--sk-ink-dark);
+  background: var(--sk-woodgrain), var(--sk-noise), linear-gradient(145deg, var(--sk-wood), #D9A066);
+  box-shadow: inset 2px 2px 4px rgba(255, 255, 255, .25), inset -2px -2px 5px rgba(0, 0, 0, .3), 0 6px 14px rgba(0, 0, 0, .45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+}
+[data-style="skeu"] .month .month-head h2::before, [data-style="skeu"] .month .month-head h2::after {
+  content: ""; position: absolute; top: 50%; width: .3em; height: .3em; margin-top: -.15em; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #FFD700, #B8860B); box-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+}
+[data-style="skeu"] .month .month-head h2::before { left: .3em; } [data-style="skeu"] .month .month-head h2::after { right: .3em; }
+[data-style="skeu"] .month.folded .month-head { opacity: .8; }
+[data-style="skeu"] .month-rule { height: 0; background: none; border-top: 2px dashed rgba(254, 243, 199, .35); border-radius: 0; }
+[data-style="skeu"] .month-head .month-count { background: radial-gradient(circle at 30% 30%, #FFD700, #B8860B); color: var(--sk-ink-dark); border-radius: 50%; min-width: 28px; height: 28px; padding: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+[data-style="skeu"] .year-head::after { height: 0; background: none; border-top: 2px dashed rgba(254, 243, 199, .3); }
+/* album cards: index cards of ruled paper */
+[data-style="skeu"] .card, [data-style="skeu"] .card.open {
+  --text: var(--sk-ink); --text-2: #374151; --text-3: #57534E; --soft: rgba(101, 67, 33, .16); --sunk: rgba(222, 184, 135, .22); --surface: var(--sk-paper);
+  background-color: var(--sk-paper); background-image: repeating-linear-gradient(transparent 0, transparent 27px, #E8E4C9 27px, #E8E4C9 28px);
+  border: none; border-left: 4px solid var(--m); border-radius: 4px; color: var(--sk-ink);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, .06), 0 2px 0 #E8DCC0, 0 8px 18px rgba(0, 0, 0, .35);
+}
+[data-style="skeu"] .card .artist { color: var(--sk-sienna); letter-spacing: .08em; }
+[data-style="skeu"] .card .album-name { color: var(--sk-ink); font-family: Georgia, serif; font-weight: 700; }
+[data-style="skeu"] .score { color: #8A6100; } [data-style="skeu"] .score b { color: var(--sk-ink); }
+[data-style="skeu"] blockquote.impression { border-left: 3px solid var(--sk-tan); font-family: Georgia, serif; color: var(--sk-ink); }
+[data-style="skeu"] .card-more .thread { background: rgba(222, 184, 135, .18); border: 1px solid rgba(101, 67, 33, .15); }
+[data-style="skeu"] .track .play { background: #9B1C1C; }
+/* sheets/pages: paper in a wooden frame */
+[data-style="skeu"] .sheet, [data-style="skeu"] .panel, [data-style="skeu"] .login-box, [data-style="skeu"] .who-menu {
+  --text: var(--sk-ink); --text-2: #374151; --text-3: #57534E; --soft: rgba(101, 67, 33, .16); --sunk: rgba(222, 184, 135, .2); --surface: var(--sk-paper); --bg: #F7F1E3;
+  background: var(--sk-paper); color: var(--sk-ink); border: 6px solid var(--sk-leather);
+}
+[data-style="skeu"] .sheet-header, [data-style="skeu"] .panel-head {
+  background: var(--sk-woodgrain), var(--sk-noise), linear-gradient(145deg, var(--sk-wood), #D9A066); color: var(--sk-ink-dark); border-bottom: 1px solid rgba(0, 0, 0, .2);
+}
+[data-style="skeu"] .sheet-title { color: var(--sk-ink-dark); text-shadow: 0 1px 0 rgba(255, 255, 255, .35); }
+[data-style="skeu"] .form-actions { background: var(--sk-woodgrain), linear-gradient(145deg, var(--sk-wood), #D9A066); border-top: 1px solid rgba(0, 0, 0, .2); }
+[data-style="skeu"] .fi, [data-style="skeu"] .ft, [data-style="skeu"] .cmt-form input { background: #FFFDF5; border: 1px solid #CDBF9C; border-radius: 4px; color: var(--sk-ink); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .08); }
+[data-style="skeu"] .set-card { background: #FFFDF5; border: 1px solid #E2D6B6; box-shadow: inset 0 2px 5px rgba(0, 0, 0, .05); }
+[data-style="skeu"] .who-item.active { border-color: var(--sk-tan); background: rgba(222, 184, 135, .25); }
+[data-style="skeu"] .toast { background: linear-gradient(180deg, #E8C9A0, var(--sk-wood)); color: var(--sk-ink-dark); box-shadow: 0 3px 0 var(--sk-leather), 0 10px 24px rgba(0, 0, 0, .4); }
+[data-style="skeu"] .login { background: var(--sk-noise), linear-gradient(180deg, var(--sk-leather), var(--sk-leather-dark)); }
+[data-style="skeu"] .dock { background: linear-gradient(to top, rgba(74, 46, 22, .98) 55%, transparent); }
+[data-style="skeu"] .dock-btn {
+  border-radius: 8px; color: var(--sk-ink-dark); font-family: Georgia, serif; font-size: 18px;
+  background: var(--sk-woodgrain), linear-gradient(180deg, #E8C9A0, var(--sk-wood));
+  box-shadow: 0 4px 0 var(--sk-leather), inset 0 1px 0 rgba(255, 255, 255, .35), 0 12px 24px rgba(0, 0, 0, .4); transition: transform 80ms ease, box-shadow 80ms ease;
+}
+[data-style="skeu"] .dock-btn:hover { transform: none; }
+@media (prefers-reduced-motion: reduce) { [data-style="skeu"] * { transition: none !important; } }
+[data-style="memphis"] .month .month-head h2 { color: #000; }

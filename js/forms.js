@@ -370,7 +370,10 @@ function openEditor(a = null, prefill = {}) {
       paintTracks(r?.tracks || []);
       paintSum();
     } catch (e) {
-      if (seq === lookupSeq) found.textContent = isNetworkError(e) ? "Izvan mreže – podaci će se popuniti kasnije" : "";
+      if (seq !== lookupSeq) return;
+      found.className = "hint found";
+      found.textContent = isNetworkError(e) ? "Izvan mreže – podaci će se popuniti kasnije"
+        : /external_request|UrlFetchApp/i.test(String(e?.message || e)) ? "Automatsko traženje još nije uključeno u Google skripti (pokreni setup)" : "";
     }
   };
   // album's tracklist (when found) as tap-to-add chips under "Istaknute pjesme"
@@ -663,14 +666,13 @@ function openMonthStyle(m) {
     <div class="month-preview-wrap"><div class="month month-pv"><div class="month-head preview" aria-hidden="true"><span class="month-name"><h2></h2></span><span class="month-rule"></span></div></div>
       <div class="card preview-card" aria-hidden="true"><div class="card-top"><div class="card-main"><div class="artist">Izvođač</div><div class="album-name">Ovako izgledaju kartice</div></div><div class="peek"><span class="score">${rateSym()} <b>4.5</b></span></div></div></div></div>
     <div class="sheet-body">
-      <section class="ms-sec"><div class="fl">Boja <button type="button" class="mini" id="m-color-reset">zadana</button></div><div id="m-color"></div></section>
+      <section class="ms-sec"><div class="fl">Boja <button type="button" class="mini" id="m-color-reset">zadana</button></div><div id="m-color"></div>
+        <div class="ms-range ms-tint" title="Koliko su kartice ovog mjeseca obojene"><span class="tint-ic tint-0" aria-hidden="true"></span><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}" aria-label="Obojenost kartica"><span class="tint-ic tint-1" aria-hidden="true"></span></div></section>
       <section class="ms-sec"><div class="fl">Simbol <small>– s obje strane naziva</small></div>
         <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}</div>
         <input class="fi" id="m-icon-custom" maxlength="12" placeholder="…ili upiši svoj: 🌧️ ✌︎ ₍ᐢ•ﻌ•ᐢ₎" value="${esc(custom || "")}" aria-label="Upiši svoj simbol">
       </section>
-      <section class="ms-sec"><label class="fl" for="m-tint">Obojenost kartica</label>
-        <div class="ms-range"><small>bez</small><input type="range" class="range" id="m-tint" min="0" max="100" value="${parseInt(monthTint(m))}"><small>puno</small></div>
-      </section>
+      
       <section class="ms-sec ms-all"><div class="fl"><label for="m-scale">Veličina naziva</label> <small>– za sve mjesece · <span id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</span></small></div>
         <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
       </section>

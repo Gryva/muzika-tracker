@@ -435,7 +435,7 @@ let coverRun = false;
 async function maybeAutoCovers() {
   if (coverRun || !state.online || !state.snap) return;
   if (Date.now() - lsGet("muzika_cover_run", 0) < 25000) return;
-  const missing = state.snap.albums.filter(a => (!a.cover && !a.lookedUp) || ((a.apple || a.deezer) && !a.spotify && !a.youtube && !a.linkedUp)).length;
+  const missing = state.snap.albums.filter(a => (!a.cover && !a.lookedUp) || ((!a.year || !a.genre || !a.duration) && !a.detailsUp) || ((a.apple || a.deezer) && !a.spotify && !a.youtube && !a.linkedUp)).length;
   if (!missing) return;
   coverRun = true; lsSet("muzika_cover_run", Date.now());
   try {

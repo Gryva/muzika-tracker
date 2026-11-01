@@ -53,7 +53,7 @@ var MONTH_LABELS = ["SIJEČANJ", "VELJAČA", "OŽUJAK", "TRAVANJ", "SVIBANJ", "L
 
 var TABS = {
   users:     ["name", "sheet", "avatar", "color", "settings", "created"],
-  meta:      ["key", "owner", "artist", "album", "cover", "coverSource", "spotify", "youtube", "apple", "deezer", "clientId", "created", "lookedUp", "linkedUp"],
+  meta:      ["key", "owner", "artist", "album", "cover", "coverSource", "spotify", "youtube", "apple", "deezer", "clientId", "created", "lookedUp", "linkedUp", "detailsUp"],
   comments:  ["id", "key", "owner", "author", "text", "ts"],
   reactions: ["key", "owner", "user", "emoji", "ts"],
   listen:    ["id", "forUser", "artist", "album", "addedBy", "note", "ts"],
@@ -121,7 +121,7 @@ function onEdit(e) { clearCache(); }
 function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu("🎵 Muzika")
-      .addItem("Fetch missing album covers", "menuFetchCovers")
+      .addItem("Popuni omote, trajanje i žanr", "menuFetchCovers")
       .addItem("Set up / repair app tabs", "setup")
       .addToUi();
   } catch (e) {}
@@ -181,6 +181,7 @@ function buildPayload() {
     if (m.created) a.created = Number(m.created) || 0;
     if (m.lookedUp) a.lookedUp = true;
     if (m.linkedUp) a.linkedUp = true;
+    if (m.detailsUp) a.detailsUp = true;
   });
 
   return {
@@ -459,6 +460,7 @@ function addAlbum(p, pre) {
   if (lookup) {
     if (!p.year && lookup.year) p.year = lookup.year;
     if (!p.genre && lookup.genre) p.genre = lookup.genre;
+    if (!p.duration && lookup.durationSec) p.duration = fmtDuration(lookup.durationSec, durationSamples(data, cols, tz));
   }
 
   var newMonth = /^\d{4}-\d{2}-\d{2}$/.test(p.listenedDate || "") ? +p.listenedDate.substr(5, 2)
@@ -656,7 +658,18 @@ function autoCoversPrepare(p) {
     addStreamingLinks(results, ODESLI_BATCH);
     return { batch: batch, results: results, remaining: missing.length - batch.length };
   }
-  // all covers done -> backfill Spotify / YouTube links for older entries
+  // covers done -> fill empty year / genre / duration cells of older entries (once per album)
+  var needDetails = readAllAlbums(getUsers()).filter(function (a) {
+    var m = metaMap[a.key];
+    return (blankish(a.year) || blankish(a.genre) || blankish(a.duration)) && !(m && m.detailsUp);
+  });
+  if (needDetails.length) {
+    var db = needDetails.slice(0, Math.min(limit, DETAILS_BATCH));
+    var dr = lookupMany(db);
+    detailsMany(dr);
+    return { batch: db, results: dr, details: true, remaining: needDetails.length - db.length };
+  }
+  // all done -> backfill Spotify / YouTube links for older entries
   var albumKeys = {};
   readAllAlbums(getUsers()).forEach(function (a) { albumKeys[a.key] = a; });
   var noLinks = Object.keys(metaMap).map(function (k) { return metaMap[k]; }).filter(function (m) {
@@ -672,6 +685,7 @@ function autoCoversPrepare(p) {
 }
 
 function autoCoversWrite(prep) {
+  if (prep.details) return detailsWrite(prep);
   var rows = readTab("meta"), byKey = {}, fresh = [];
   rows.forEach(function (m) { byKey[m.key] = m; });
   prep.batch.forEach(function (a, i) {
@@ -775,7 +789,12 @@ function lookupAlbum(artist, album, spotify) {
   artist = String(artist || "").trim(); album = String(album || "").trim();
   var result = null;
   if (artist && album) result = lookupMany([{ artist: artist, album: album }])[0];
-  if (result) { var det = albumDetails(result); result.durationSec = det.sec; result.tracks = det.tracks.slice(0, 40); }
+  if (result) {
+    var det = albumDetails(result);
+    result.durationSec = det.sec; result.tracks = det.tracks.slice(0, 40);
+    if (!result.genre && det.genre) result.genre = det.genre;
+    if (!result.year && det.year) result.year = det.year;
+  }
   var sp = spotifyCover(spotify);
   if (sp) { result = result || {}; result.cover = sp; result.source = "spotify"; }
   if (result && (result.apple || result.deezer || sp)) {
@@ -806,11 +825,114 @@ function albumDetails(r) {
       var res2 = UrlFetchApp.fetch("https://api.deezer.com/album/" + r.deezerId, { muteHttpExceptions: true });
       if (res2.getResponseCode() === 200) {
         var d = JSON.parse(res2.getContentText());
-        return { sec: Number(d.duration) || 0, tracks: ((d.tracks && d.tracks.data) || []).map(function (t) { return t.title; }) };
+        return { sec: Number(d.duration) || 0, tracks: ((d.tracks && d.tracks.data) || []).map(function (t) { return t.title; }),
+                 genre: d.genres && d.genres.data && d.genres.data[0] ? d.genres.data[0].name : "",
+                 year: d.release_date ? String(d.release_date).substr(0, 4) : "" };
       }
     }
   } catch (e) {}
   return { sec: 0, tracks: [] };
+}
+
+var DETAILS_BATCH = 6;
+/** Empty, or only a placeholder like "-" / "?" that people type when they don't know. */
+function blankish(v) { return /^[\s\-–—?\/.x]*$/i.test(String(v == null ? "" : v)); }
+
+/** albumDetails() for many results at once (one parallel round of requests). */
+function detailsMany(results) {
+  var idx = [], reqs = [];
+  results.forEach(function (r, i) {
+    if (!r) return;
+    if (r.itunesId) reqs.push({ url: "https://itunes.apple.com/lookup?entity=song&limit=200&id=" + r.itunesId, muteHttpExceptions: true });
+    else if (r.deezerId) reqs.push({ url: "https://api.deezer.com/album/" + r.deezerId, muteHttpExceptions: true });
+    else return;
+    idx.push(i);
+  });
+  if (!idx.length) return;
+  var resp;
+  try { resp = UrlFetchApp.fetchAll(reqs); } catch (e) { return; }
+  idx.forEach(function (i, j) {
+    var r = results[i];
+    try {
+      if (resp[j].getResponseCode() !== 200) return;
+      var d = JSON.parse(resp[j].getContentText());
+      if (r.itunesId) {
+        var ms = 0;
+        (d.results || []).forEach(function (t) { if (t.wrapperType === "track") ms += Number(t.trackTimeMillis) || 0; });
+        r.durationSec = Math.round(ms / 1000);
+      } else {
+        r.durationSec = Number(d.duration) || 0;
+        if (!r.year && d.release_date) r.year = String(d.release_date).substr(0, 4);
+        if (!r.genre && d.genres && d.genres.data && d.genres.data[0]) r.genre = d.genres.data[0].name;
+      }
+    } catch (e) {}
+  });
+}
+
+/** Writes the found year / genre / duration into the owner's own tab – only into empty cells. */
+function detailsWrite(prep) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone();
+  var users = {}; getUsers().forEach(function (u) { users[u.name] = u; });
+  var metaRows = readTab("meta"), byKey = {}, fresh = [], filled = 0, sheets = {};
+  metaRows.forEach(function (m) { byKey[m.key] = m; });
+  prep.batch.forEach(function (a, i) {
+    var r = prep.results[i] || {};
+    var u = users[a.owner]; if (!u) return;
+    var sh = sheets[u.name] = sheets[u.name] || (function () {
+      var sheet = ss.getSheetByName(u.sheet); if (!sheet) return null;
+      try { return { sheet: sheet, info: getSheetInfo(sheet) }; } catch (e) { return null; }
+    })();
+    if (sh && sh.info) {
+      var data = sh.info.data, cols = sh.info.cols, row = -1;
+      // the row may have moved since the lookup started: find it again by artist + album
+      if (data[a.row - 1] && normKey(data[a.row - 1][cols.artist], data[a.row - 1][cols.album]) === a.nk) row = a.row - 1;
+      else for (var k = sh.info.headerRow + 1; k < data.length; k++) {
+        if (normKey(data[k][cols.artist], data[k][cols.album]) === a.nk) { row = k; break; }
+      }
+      if (row >= 0) {
+        var put = {};
+        var open = function (f) { return cols[f] !== undefined && blankish(cellToString(data[row][cols[f]], f, tz)); };
+        if (open("year") && r.year) put.year = r.year;
+        if (open("genre") && r.genre) put.genre = r.genre;
+        if (open("duration") && r.durationSec) put.duration = fmtDuration(r.durationSec, durationSamples(data, cols, tz));
+        if (Object.keys(put).length) {
+          writeFields(sh.sheet, row + 1, cols, put);
+          Object.keys(put).forEach(function (f) { data[row][cols[f]] = put[f]; });
+          filled++;
+        }
+      }
+    }
+    var m = byKey[a.key];
+    if (m) setObj("meta", m._row, { detailsUp: String(Date.now()) });
+    else { m = { key: a.key, owner: a.owner, artist: a.artist, album: a.album, detailsUp: String(Date.now()) }; byKey[a.key] = m; fresh.push(m); }
+  });
+  if (fresh.length) appendObjs("meta", fresh);
+  return { success: true, done: filled || prep.batch.length, filled: filled, remaining: prep.remaining };
+}
+
+/** The durations already in this tab, so a new one is written the same way ("43 min", "43min", "43:12", "1:02:40"). */
+function durationSamples(data, cols, tz) {
+  if (cols.duration === undefined) return [];
+  var out = [];
+  for (var r = data.length - 1; r > 0 && out.length < 30; r--) {
+    var v = cellToString(data[r][cols.duration], "duration", tz);
+    if (v && /\d/.test(v)) out.push(v);
+  }
+  return out;
+}
+
+function fmtDuration(sec, sample) {
+  sec = Math.round(Number(sec) || 0);
+  if (!sec) return "";
+  sample = sample || [];
+  var colon = sample.length && sample.filter(function (d) { return /^\d+:\d{2}(:\d{2})?$/.test(d); }).length > sample.length / 2;
+  if (colon) {
+    var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    return h ? h + ":" + pad(m) + ":" + pad(s) : m + ":" + pad(s);
+  }
+  var gap = sample.length && !sample.some(function (d) { return /\d\s+min/i.test(d); }) && sample.some(function (d) { return /\d+min/i.test(d); }) ? "" : " ";
+  return Math.round(sec / 60) + gap + "min";
 }
 
 /**

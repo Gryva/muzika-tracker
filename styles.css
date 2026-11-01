@@ -2528,3 +2528,14 @@ button.logo:active { transform: scale(.96); }
 [data-style="glitch"] .card, [data-style="glitch"] .card.open { background: color-mix(in srgb, var(--m) var(--tint), #111111); }
 [data-style="skeu"] .card, [data-style="skeu"] .card.open { background-color: color-mix(in srgb, var(--m) var(--tint), var(--sk-paper)); }
 [data-style="nature"] .month-preview-wrap .preview-card { border-radius: 22px 26px 22px 28px; background: color-mix(in srgb, var(--m) var(--tint), #FBFBEF); }
+
+/* v29: a month keeps its colour on the name when it's folded too */
+.month.folded .month-head, [data-style] .month.folded .month-head { opacity: 1; }
+.month.folded .month-head h2 { transition: color .2s ease, background .2s ease; }
+[data-style="pop"] .month.folded .month-head h2, [data-style="memphis"] .month.folded .month-head h2 { background: var(--m); }
+[data-style="clay"] .month.folded .month-head h2 { background: color-mix(in srgb, var(--m) 70%, #FFFFFF); }
+[data-style="swiss"] .month .month-head h2, [data-style="swiss"] .month.folded .month-head h2 { color: var(--m); }
+[data-style="mag"] .month .month-head h2 { color: var(--m); }
+[data-style="nature"] .month .month-head h2 { color: color-mix(in srgb, var(--m) 75%, var(--leaf-ink)); }
+[data-style="glitch"] .month .month-head h2 { color: var(--m); }
+[data-style="skeu"] .month .month-head h2 { color: color-mix(in srgb, var(--m) 60%, #2B1A0E); }

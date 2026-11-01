@@ -1967,3 +1967,8 @@ figure.own blockquote.impression::before { content: none; }
 [data-style="vivid"] .card .mark-dot { box-shadow: 0 0 0 2px #000; }
 [data-style="vivid"] .card .mark-pill { border: 2px solid #000; }
 [data-style="nature"] .mark-chip { background: #FFFFF4; border-color: rgba(34, 139, 34, .25); color: var(--leaf-ink); }
+
+/* ═════════════ v18: folded months show only their name ═════════════ */
+.month.folded .month-count, .month.folded .month-gear { display: none; }
+.month:not(.folded) .month-count { animation: fadeIn .3s ease both; }
+@media (prefers-reduced-motion: reduce) { .month:not(.folded) .month-count { animation: none; } }

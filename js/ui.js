@@ -178,6 +178,8 @@ function renderList() {
   if (state.scrollToEnd) {
     state.scrollToEnd = false;
     requestAnimationFrame(scrollToCurrentMonth);
+    // fonts/layout can still be settling on the very first paint: try once more if nothing moved
+    setTimeout(() => { if (window.scrollY === 0) scrollToCurrentMonth(); }, 350);
   }
   albums.forEach(a => state.rendered.add(a.key));
 }
@@ -209,11 +211,11 @@ function cardHtml(a, i) {
   ].filter(Boolean);
   const tracks = a.standoutTracks && a.standoutTracks !== "-" ? a.standoutTracks : "";
   const rows = [
-    tracks && ["Standouts", esc(tracks)],
-    a.recommend && ["Recommend", recHtml(a.recommend)],
-    a.comments && ["Note", esc(a.comments)],
-    also.length && ["Also heard", `<span class="av-stack">${also.map(o => avatar(o, 20)).join("")}</span> ${esc(also.join(", "))}`]
+    tracks && ["🎵", "Standouts", esc(tracks)],
+    a.comments && ["📝", "Note", esc(a.comments)]
   ].filter(Boolean);
+  // when open, the quick facts move up into the card's head; the body keeps the words
+  const headFacts = expanded ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : a.rating ? `<span>★ ${esc(a.rating)}</span>` : ""}${facts.map(f => `<span>${f}</span>`).join("")}${a.recommend ? `<span class="f-rec">${recHtml(a.recommend)}</span>` : ""}</div>` : "";
   const moreOpen = state.moreFor === a.key;
 
   return `
@@ -222,18 +224,19 @@ function cardHtml(a, i) {
       <div class="card-main">
         <div class="artist">${esc(a.artist)}</div>
         <div class="album-name">${esc(a.album)}${isNew(a) ? ` <span class="new-pill tag">NEW</span>` : ""}${a.pending ? ` <span class="pending-pill" title="Saved on this device, waiting to sync">⏳</span>` : ""}</div>
+        ${headFacts}
       </div>
       <div class="peek">
-        ${!expanded && also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}
+        ${also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}
         ${!expanded && cmts.length ? `<span class="peek-c" title="${cmts.length} comment${cmts.length === 1 ? "" : "s"}">💬${cmts.length}</span>` : ""}
         ${scoreHtml(a.rating)}
         <span class="chev" aria-hidden="true"></span>
       </div>
     </div>
     ${expanded ? `<div class="card-more">
-      ${facts.length || parseRating(a.rating) ? `<div class="facts">${parseRating(a.rating) ? ratingHtml(a.rating) : ""}${facts.map(f => `<span>${f}</span>`).join("")}</div>` : ""}
       ${a.impression ? `<blockquote class="impression">${esc(a.impression)}</blockquote>` : ""}
-      ${rows.length ? `<dl class="details">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>` : ""}
+      ${rows.length ? `<ul class="details">${rows.map(([ic, k, v]) => `<li><span class="d-ic" aria-hidden="true">${ic}</span><span class="sr">${k}: </span>${v}</li>`).join("")}</ul>` : ""}
+      ${also.length ? `<div class="also-line">${avatar(also[0], 18)}<span>Also in ${esc(also.join(", "))}'s table</span></div>` : ""}
       <div class="social">
         ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}" aria-label="${e} ${us.length}">${e}<small>${us.length}</small></button>`).join("")}
         ${canWrite() ? (state.pickerFor === a.key

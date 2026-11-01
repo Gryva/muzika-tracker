@@ -1427,3 +1427,40 @@ blockquote.impression { margin: 0; padding: 2px 0 2px 14px; border-left: 3px sol
 [data-style="mag"] .score { color: #000; font-family: Georgia, serif; }
 [data-style="mag"] .more-menu button { border-radius: 0; background: #FFF; border: 1px solid #000; }
 [data-style="swiss"] .month { align-content: start; }
+
+/* ═════════════ v12: quick facts in the card head, the words in the body ═════════════ */
+.card.open .card-top { align-items: flex-start; }
+.card-top .facts { margin-top: 6px; font-size: 12.5px; }
+.card-top .facts .rec { padding: 1px 8px; font-size: 11.5px; }
+.card-top .facts > .rec::before { content: none; }
+.card-top .facts > .rec { margin-left: 8px; }
+.card.open .card-more { gap: 10px; }
+blockquote.impression { position: relative; font-size: 17px; line-height: 1.55; font-style: normal; padding: 4px 0 4px 16px; }
+blockquote.impression::before {
+  content: "“"; position: absolute; left: -2px; top: -14px; font-size: 44px; line-height: 1; color: var(--m); opacity: .45; font-family: Georgia, serif;
+}
+.details { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.details li { display: flex; gap: 8px; align-items: baseline; font-size: 14px; color: var(--text-2); }
+.d-ic { flex: none; width: 18px; text-align: center; font-size: 13px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.also-line { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); }
+.card.open .peek .av-stack { display: none; }
+
+[data-style="pop"] blockquote.impression::before, [data-style="swiss"] blockquote.impression::before,
+[data-style="mag"] blockquote.impression::before, [data-style="clay"] blockquote.impression::before { content: none; }
+[data-style="pop"] .details li, [data-style="pop"] .also-line, [data-style="pop"] .card-top .facts { color: #000; }
+[data-style="pop"] .card-top .facts .rec { border-width: 2px; }
+[data-style="clear"] .card-top .facts { font-size: 16px; }
+[data-style="clear"] blockquote.impression { font-size: 19px; }
+[data-style="clear"] .details li { font-size: 17px; color: #111827; }
+[data-style="clear"] .also-line { font-size: 16px; color: #374151; }
+[data-style="mag"] .card-top .facts { font-family: Georgia, serif; font-style: italic; }
+[data-style="mag"] .details li { font-family: Georgia, serif; color: #000; }
+[data-style="film"] blockquote.impression { font-style: italic; }
+/* separators that never start a wrapped line: every item gets a leading dot, the first column of dots is clipped away */
+.card-top .facts { margin-left: -16px; clip-path: inset(-4px -4px -4px 16px); }
+.card-top .facts > *::before, .card-top .facts > * + *::before { content: "·"; display: inline-block; width: 16px; margin: 0; text-align: center; opacity: .55; }
+.card-top .facts > .stars::before { width: 16px; }
+.card-top .facts > .rating-num::before { content: none; }
+.card-top .facts .f-rec .rec { margin: 0; }
+.card-top .facts > .rec::before { content: none; }

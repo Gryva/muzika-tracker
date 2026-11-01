@@ -153,6 +153,31 @@ function ratingWidget(container, initial, onChange) {
   paint();
 }
 
+// ═══════════════ duration in the owner's own style ═══════════════
+/** Writes seconds the way this person already writes durations in their tab: "36min", "50 min", "1h 16 min", "41 min 22 sek". */
+function fmtDurationLike(sec, owner) {
+  sec = Math.round(Number(sec) || 0);
+  if (!sec) return "";
+  const mine = (state.view?.albums || []).filter(a => a.owner === owner && a.duration).map(a => String(a.duration).trim());
+  const sample = mine.slice(-30);
+  const has = re => sample.some(d => re.test(d));
+  const gap = sample.length && !has(/\d\s+min/i) && has(/\d+min/i) ? "" : " ";
+  const useSec = has(/sek|sec|\d+:\d{2}/i);
+  const useHours = has(/\d\s*h\b/i);
+  const colon = sample.length && sample.filter(d => /^\d+:\d{2}(:\d{2})?$/.test(d)).length > sample.length / 2;
+  if (colon) {
+    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+  }
+  let m = useSec ? Math.floor(sec / 60) : Math.round(sec / 60);
+  const s = sec % 60;
+  let out = "";
+  if (useHours && m >= 60) { out = `${Math.floor(m / 60)}h `; m %= 60; }
+  out += `${m}${gap}min`;
+  if (useSec && s) out += ` ${s}${gap}sek`;
+  return out;
+}
+
 // ═══════════════ add / edit album ═══════════════
 function openEditor(a = null, prefill = {}) {
   if (!canWrite()) return;
@@ -255,8 +280,10 @@ function openEditor(a = null, prefill = {}) {
       const ytI = $("#f-youtube", ov);
       if (!spotifyI.value || spotifyI.value === f.autoSp) spotifyI.value = f.autoSp = r?.spotify || "";
       if (!ytI.value || ytI.value === f.autoYt) ytI.value = f.autoYt = r?.youtube || "";
-      const lk = [r?.spotify && "Spotify", r?.youtube && "YouTube"].filter(Boolean);
-      hint.textContent = (r?.cover ? `Found via ${r.source === "itunes" ? "Apple Music" : r.source === "deezer" ? "Deezer" : "Spotify"} ✓` : "No cover found – upload one?") + (lk.length ? ` · ${lk.join(" + ")} link${lk.length > 1 ? "s" : ""} ✓` : "");
+      const durI = $("#f-duration", ov), dur = fmtDurationLike(r?.durationSec, a?.owner || state.me);
+      if (!durI.value || durI.value === f.autoDur) durI.value = f.autoDur = dur;
+      const lk = [r?.spotify && "Spotify", r?.youtube && "YouTube", r?.durationSec && "duration"].filter(Boolean);
+      hint.textContent = (r?.cover ? `Found via ${r.source === "itunes" ? "Apple Music" : r.source === "deezer" ? "Deezer" : "Spotify"} ✓` : "No cover found – upload one?") + (lk.length ? ` · ${lk.join(", ")} ✓` : "");
       hint.className = "hint " + (r?.cover ? "ok" : "warn");
     } catch (e) {
       if (seq === lookupSeq) { hint.textContent = isNetworkError(e) ? "Offline – will look it up when synced" : e.message; hint.className = "hint warn"; }

@@ -160,13 +160,13 @@ function renderList() {
   albums.forEach(a => counts[a.month || 0] = (counts[a.month || 0] || 0) + 1);
   for (const a of albums) {
     if ((a.month || 0) !== month) {
-      if (month !== -1) html += `</div>`;
+      if (month !== -1) html += `</div></section>`;
       month = a.month || 0;
-      html += `<div class="month-head" style="--m:${monthColor(month)}">${month ? MONTH_NAMES[month - 1] : "Bez mjeseca"} <small>${counts[month]}</small></div><div class="album-list">`;
+      html += `<section class="month" style="--m:${monthColor(month)}"><header class="month-head"><h2>${month ? MONTH_NAMES[month - 1] : "Bez mjeseca"}</h2><span class="month-count">${counts[month]} ${counts[month] === 1 ? "album" : "albuma"}</span></header><div class="album-list">`;
     }
     html += cardHtml(a, i++);
   }
-  list.innerHTML = html + `</div>`;
+  list.innerHTML = html + `</div></section>`;
   albums.forEach(a => state.rendered.add(a.key));
 }
 

@@ -426,7 +426,7 @@ document.addEventListener("keydown", e => {
     const a = D.byKey.get(e.target.dataset.cmt);
     if (a) sendComment(a);
   }
-  if (e.key === "Escape") { $(".overlay")?.remove(); closePanel(); if (state.whoOpen) { state.whoOpen = false; renderTabs(); $("#who-btn")?.focus(); } }
+  if (e.key === "Escape") { const o = $$(".overlay").pop(); o?._closePage ? o._closePage() : o?.remove(); closePanel(); if (state.whoOpen) { state.whoOpen = false; renderTabs(); $("#who-btn")?.focus(); } }
 });
 
 function sendComment(a) {

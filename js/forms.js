@@ -178,6 +178,24 @@ function fmtDurationLike(sec, owner) {
   return out;
 }
 
+// ═══════════════ full-screen pages (album form, settings) ═══════════════
+/** Turns an overlay into a full-screen page. The phone's Back button closes it too.
+ *  Returns close(): goes back one history step, which slides the page away. */
+function asPage(ov) {
+  ov.classList.add("page");
+  document.body.classList.add("page-open");
+  let closed = false;
+  const finish = () => {
+    closed = true; ov.classList.add("closing");
+    setTimeout(() => { ov.remove(); if (!$(".overlay.page")) document.body.classList.remove("page-open"); }, 220);
+  };
+  try { history.pushState({ muzikaPage: true }, ""); } catch (e) {}
+  const onPop = () => { if (!closed) finish(); };
+  window.addEventListener("popstate", onPop, { once: true });
+  ov._closePage = () => { if (closed) return; if (history.state?.muzikaPage) history.back(); else { window.removeEventListener("popstate", onPop); finish(); } };
+  return ov._closePage;
+}
+
 // ═══════════════ add / edit album ═══════════════
 /** Calm, two-step form: the essentials first, everything else folded under "More details".
  *  Year / genre / duration / Spotify + YouTube links are found automatically in the background. */
@@ -191,7 +209,7 @@ function openEditor(a = null, prefill = {}) {
   const recOpts = ["Da", "Ne", "Meh"];
   if (f.recommend && !recOpts.includes(f.recommend)) recOpts.push(f.recommend);
   ov.innerHTML = `<form class="sheet" autocomplete="off" aria-label="${editing ? "Uredi album" : "Novi album"}">
-    <div class="sheet-header"><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div><button type="button" class="btn btn-ghost btn-icon" data-close aria-label="Zatvori">✕</button></div>
+    <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">${editing ? "Uredi album" : "Novi album"}</div></div>
     <div class="sheet-body">
       <div class="step" style="--s:0">
         <div class="fg"><label class="fl" for="f-artist">Izvođač</label><input class="fi fi-big" id="f-artist" value="${esc(src.artist || "")}" placeholder="npr. Pink Floyd" required></div>
@@ -230,9 +248,8 @@ function openEditor(a = null, prefill = {}) {
     </div>
   </form>`;
   document.body.appendChild(ov);
-  const close = () => { ov.classList.add("closing"); setTimeout(() => ov.remove(), 220); };
+  const close = asPage(ov);
   $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
-  ov.addEventListener("click", e => { if (e.target === ov) close(); });
 
   ratingWidget($("#f-rating", ov), f.rating, v => f.rating = v);
   $$("#f-rec button", ov).forEach(b => b.addEventListener("click", () => {
@@ -353,7 +370,7 @@ function openSettings(section) {
   const ov = document.createElement("div");
   ov.className = "overlay";
   ov.innerHTML = `<div class="sheet">
-    <div class="sheet-header"><div class="sheet-title">Postavke</div><button class="btn btn-ghost btn-icon" data-close aria-label="Zatvori">✕</button></div>
+    <div class="sheet-header"><button type="button" class="btn btn-ghost btn-icon page-back" data-close aria-label="Natrag"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="sheet-title">Postavke</div></div>
     <div class="sheet-body">
       ${me ? `<div class="section-title" id="sec-profile">👤 Profil</div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
@@ -422,9 +439,8 @@ function openSettings(section) {
       <button class="link-btn switch-user" id="s-switch">Nisi ${me ? esc(me.name) : "ti"}? Promijeni korisnika</button>
     </div></div>`;
   document.body.appendChild(ov);
-  const close = () => ov.remove();
+  const close = asPage(ov);
   $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
-  ov.addEventListener("click", e => { if (e.target === ov) close(); });
   if (section === "profile") setTimeout(() => $("#sec-profile", ov)?.scrollIntoView(), 0);
 
   const choice = (sel, fn) => $$(sel + " button", ov).forEach(b => b.addEventListener("click", () => {

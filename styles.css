@@ -1793,3 +1793,46 @@ figure.own blockquote.impression { margin: 0; }
 [data-style="vivid"] .card .card-more .thread { background: rgba(0, 0, 0, .1); }
 [data-style="vivid"] .card .cmt-form input { background: rgba(255, 255, 255, .7); }
 [data-style="vivid"] .seg button.on { background: var(--vb-lime); color: #000; }
+
+/* ═════════════ v15: album form + settings are full-screen pages ═════════════ */
+body.page-open { overflow: hidden; }
+.overlay.page { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; align-items: stretch; justify-content: stretch; animation: none; }
+.overlay.page .sheet {
+  width: 100%; height: 100%; max-width: none !important; max-height: none; margin: 0;
+  border: none !important; border-radius: 0 !important; box-shadow: none !important;
+  display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  animation: pageIn .38s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes pageIn { from { opacity: 0; transform: translateY(26px); } }
+.overlay.page.closing { animation: none; }
+.overlay.page.closing .sheet { animation: pageOut .22s ease-in forwards; transform: none; transition: none; }
+@keyframes pageOut { to { opacity: 0; transform: translateY(26px); } }
+/* content column: comfortable on phones, centred and readable on wide screens */
+.overlay.page .sheet-header {
+  justify-content: flex-start; gap: 6px;
+  padding: calc(10px + env(safe-area-inset-top)) max(10px, calc(50% - 336px)) 10px;
+}
+.overlay.page .sheet-title { font-size: 21px; }
+.page-back { margin-left: -4px; flex: none; }
+.page-back svg { display: block; }
+.overlay.page .sheet-body { flex: 1; padding: 22px max(18px, calc(50% - 320px)) 32px; }
+.overlay.page .form-actions {
+  padding: 12px max(18px, calc(50% - 320px)) calc(12px + env(safe-area-inset-bottom));
+}
+.overlay.page .form-actions .btn { flex: 1; max-width: 320px; height: 52px; font-size: 16px; }
+.overlay.page .form-actions .btn-primary { flex: 2; }
+.editor.page .fi-big { font-size: 19px; padding: 15px 16px; }
+@media (prefers-reduced-motion: reduce) { .overlay.page .sheet, .overlay.page.closing .sheet { animation: none !important; } }
+
+/* styles that frame things keep their identity on the page */
+[data-style="pop"] .overlay.page .sheet-header { border-bottom: 4px solid #000; }
+[data-style="pop"] .overlay.page .form-actions { border-top: 4px solid #000; }
+[data-style="pop"] .page-back { border: 3px solid #000; background: #FFF; box-shadow: 3px 3px 0 #000; }
+[data-style="mag"] .overlay.page .sheet-header { border-bottom: 4px double #000; }
+[data-style="mag"] .overlay.page .sheet-title { font-size: 28px; }
+[data-style="swiss"] .overlay.page .sheet-header { border-bottom: 1px solid #000; }
+[data-style="clear"] .overlay.page .sheet-header { border-bottom: 2px solid #111827; }
+[data-style="clear"] .page-back { width: 48px; height: 48px; border: 2px solid #6B7280; }
+[data-style="clear"] .overlay.page .form-actions .btn { height: 56px; font-size: 18px; }
+[data-style="vivid"] .overlay.page .sheet-title { font-size: 26px; }
+[data-style="clay"] .page-back { background: #FFF; border: 3px solid rgba(255, 255, 255, .7); box-shadow: var(--clay-shadow-sm); }

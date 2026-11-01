@@ -2520,3 +2520,11 @@ button.logo:active { transform: scale(.96); }
 .month-sheet .sym-own input#m-icon-custom { border: none !important; box-shadow: none !important; background: none !important; border-radius: 0 !important; padding: 0 !important; height: auto; min-height: 0; transform: none !important; }
 .month-sheet .sym-own input#m-icon-custom, .month-sheet .sym-own input#m-icon-custom:focus, .month-sheet .sym-own input#m-icon-custom:focus-visible { outline: none !important; }
 [data-style="pop"] .sym-own.on, [data-style="memphis"] .sym-own.on, [data-style="pop"] .sym-own:focus-within, [data-style="memphis"] .sym-own:focus-within { border-style: solid; background: var(--m); }
+
+/* v28: the month's "card colour" slider works in every style */
+[data-style="swiss"] .card, [data-style="swiss"] .card.open { background: color-mix(in srgb, var(--m) var(--tint), var(--white)); }
+[data-style="clear"] .card, [data-style="clear"] .card.open { background: color-mix(in srgb, var(--m) var(--tint), #FFFFFF); }
+[data-style="mag"] .card, [data-style="mag"] .card.open { background: color-mix(in srgb, var(--m) var(--tint), #FFFFFF); }
+[data-style="glitch"] .card, [data-style="glitch"] .card.open { background: color-mix(in srgb, var(--m) var(--tint), #111111); }
+[data-style="skeu"] .card, [data-style="skeu"] .card.open { background-color: color-mix(in srgb, var(--m) var(--tint), var(--sk-paper)); }
+[data-style="nature"] .month-preview-wrap .preview-card { border-radius: 22px 26px 22px 28px; background: color-mix(in srgb, var(--m) var(--tint), #FBFBEF); }

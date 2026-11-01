@@ -633,12 +633,12 @@ function colorPicker(el, { value, tones = PALETTE_TONES, onPick }) {
       <label class="cp-row"><span>Nijansa</span><input type="range" class="cp-hue" min="0" max="359" step="1" aria-label="Nijansa"></label>
       <label class="cp-row"><span>Svjetlina</span><input type="range" class="cp-light" min="25" max="88" step="1" aria-label="Svjetlina"></label>
     </div>`;
-  const hue = $(".cp-hue", el), light = $(".cp-light", el), own = $(".cp-own", el), tog = $(".cp-own-toggle", el);
+  const hue = $(".cp-hue", el), light = $(".cp-light", el), own = $(".cp-own", el), tog = $(".cp-own-toggle", el), dot = $(".cp-own-dot", el);
   const paint = () => {
     $$(".cp-sw", el).forEach(b => b.classList.toggle("on", b.dataset.c === cur));
     const custom = cur && !colors.includes(cur);
     tog.classList.toggle("on", custom);
-    $(".cp-own-dot", el).style.background = custom ? cur : "conic-gradient(#f66, #fd5, #6f8, #6cf, #a7f, #f6c, #f66)";
+    dot.style.background = custom ? cur : "conic-gradient(#f66, #fd5, #6f8, #6cf, #a7f, #f6c, #f66)";
     const { h, l } = hexHsl(cur || "#ff6b6b");
     hue.value = h; light.value = Math.max(25, Math.min(88, l));
     light.style.setProperty("--h", h);
@@ -655,9 +655,9 @@ function colorPicker(el, { value, tones = PALETTE_TONES, onPick }) {
 // ═══════════════ per-month style sheet ═══════════════
 /** One simple page: live preview on top, then colour, symbol, card tint and the (all-months) name size. */
 function openMonthStyle(m) {
-  const s = state.settings;
+  const S = () => state.settings; // always the live settings (a sync from another device can swap the object)
   const name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
-  const mp = () => (s.months[m] = s.months[m] || {});
+  const mp = () => (S().months[m] = S().months[m] || {});
   const custom = !MONTH_ICONS.includes(mp().icon || "") ? mp().icon : "";
   const ov = document.createElement("div");
   ov.className = "overlay month-sheet";
@@ -671,8 +671,8 @@ function openMonthStyle(m) {
       <section class="ms-sec"><div class="fl">Simbol</div>
         <div class="sym-strip" id="m-icon">${MONTH_ICONS.map(ic => `<button type="button" data-v="${esc(ic)}" aria-label="${ic ? "Simbol " + ic : "Bez simbola"}">${ic || "∅"}</button>`).join("")}<label class="sym-own"><span aria-hidden="true">✎</span><input id="m-icon-custom" maxlength="12" placeholder="svoj…" value="${esc(custom || "")}" aria-label="Upiši svoj simbol"></label></div>
       </section>
-      <section class="ms-sec ms-all"><div class="fl"><label for="m-scale">Veličina naziva</label> <small>– za sve mjesece · <span id="m-scale-v">${Math.round((s.monthScale || 1) * 100)} %</span></small></div>
-        <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${s.monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
+      <section class="ms-sec ms-all"><div class="fl"><label for="m-scale">Veličina naziva</label> <small>– za sve mjesece · <span id="m-scale-v">${Math.round((S().monthScale || 1) * 100)} %</span></small></div>
+        <div class="ms-range"><small aria-hidden="true">A</small><input type="range" class="range" id="m-scale" min="0.7" max="1.5" step="0.05" value="${S().monthScale || 1}"><small aria-hidden="true" style="font-size:18px">A</small></div>
       </section>
     </div>
     <div class="form-actions"><button class="btn btn-ghost" id="m-reset">Vrati zadano</button><button class="btn btn-primary" data-close>Gotovo</button></div>
@@ -692,7 +692,7 @@ function openMonthStyle(m) {
     $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x.dataset.v === (mp().icon || "")));
     $(".sym-own", ov).classList.toggle("on", !!mp().icon && !MONTH_ICONS.includes(mp().icon));
     $("#m-tint", ov).value = parseInt(monthTint(m));
-    $("#m-scale-v", ov).textContent = Math.round((s.monthScale || 1) * 100) + " %";
+    $("#m-scale-v", ov).textContent = Math.round((S().monthScale || 1) * 100) + " %";
   };
   const apply = () => { saveSettings(); paint(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderList(); };
   paint();
@@ -703,7 +703,7 @@ function openMonthStyle(m) {
 
   $("#m-color-reset", ov).addEventListener("click", () => { delete mp().color; picker.set(monthColor(m)); apply(); });
   $("#m-tint", ov).addEventListener("input", e => { mp().tint = +e.target.value; apply(); });
-  $("#m-scale", ov).addEventListener("input", e => { s.monthScale = +e.target.value; apply(); });
+  $("#m-scale", ov).addEventListener("input", e => { S().monthScale = +e.target.value; apply(); });
   $$("#m-icon button", ov).forEach(b => b.addEventListener("click", () => { mp().icon = b.dataset.v; $("#m-icon-custom", ov).value = ""; apply(); }));
   $("#m-icon-custom", ov).addEventListener("input", e => {
     // short on purpose: at most 3 visible characters (an emoji with skin tone counts as one)
@@ -713,7 +713,7 @@ function openMonthStyle(m) {
   });
   $("#m-reset", ov).addEventListener("click", () => {
     const hidden = mp().hidden;
-    delete s.months[m]; if (hidden !== undefined) mp().hidden = hidden;
+    delete S().months[m]; if (hidden !== undefined) mp().hidden = hidden;
     $("#m-icon-custom", ov).value = ""; picker.set(monthColor(m)); apply();
   });
 }

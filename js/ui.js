@@ -52,10 +52,10 @@ function renderHeader() {
       <div class="logo">🎵 Muzika</div>
       <span class="sync" id="sync"></span>
       <div class="spacer"></div>
-      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Activity">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
-      ${sheetUrl ? `<a class="btn btn-ghost btn-icon" href="${esc(sheetUrl)}" target="_blank" rel="noopener" title="Open the Google Sheet">📊</a>` : ""}
-      <button class="btn btn-ghost btn-icon" id="btn-settings" title="Customize">⚙️</button>
-      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-me" title="${esc(state.me)}" style="padding:0">${avatar(state.me, 34)}</button>` : ""}
+      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-bell" title="Activity" aria-label="Activity${n ? ` (${n} new)` : ""}">🔔${n ? `<span class="badge">${n > 99 ? "99+" : n}</span>` : ""}</button>` : ""}
+      ${sheetUrl ? `<a class="btn btn-ghost btn-icon" href="${esc(sheetUrl)}" target="_blank" rel="noopener" title="Open the Google Sheet" aria-label="Open the Google Sheet">📊</a>` : ""}
+      <button class="btn btn-ghost btn-icon" id="btn-settings" title="Customize" aria-label="Settings">⚙️</button>
+      ${canWrite() ? `<button class="btn btn-ghost btn-icon" id="btn-me" title="${esc(state.me)}" aria-label="Your profile" style="padding:0">${avatar(state.me, 34)}</button>` : ""}
       ${canWrite() ? `<button class="btn btn-primary btn-sm" id="btn-add">＋ Add</button>` : `<button class="btn btn-ghost btn-sm" id="btn-login">Log in</button>`}
     </div>`;
   setSync();
@@ -116,7 +116,7 @@ function renderMain() {
     main.innerHTML = `
       <div class="filters">
         <input class="search" id="search" type="search" placeholder="🔍 Search artist, album, genre, comments…" autocomplete="off">
-        <button class="btn btn-ghost btn-icon" id="btn-refresh" title="Refresh">🔄</button>
+        <button class="btn btn-ghost btn-icon" id="btn-refresh" title="Refresh" aria-label="Refresh">🔄</button>
       </div>
       <div class="stats" id="stats"></div>
       <div id="list"></div>`;
@@ -162,13 +162,21 @@ function renderList() {
     if ((a.month || 0) !== month) {
       if (month !== -1) html += `</div></section>`;
       month = a.month || 0;
-      html += `<section class="month" style="--m:${monthColor(month)}"><header class="month-head"><h2>${month ? MONTH_NAMES[month - 1] : "Bez mjeseca"}</h2><span class="month-count">${counts[month]} ${counts[month] === 1 ? "album" : "albuma"}</span></header><div class="album-list">`;
+      const mp = monthPref(month), name = month ? MONTH_NAMES[month - 1] : "Bez mjeseca";
+      html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
+        <header class="month-head">
+          <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Show" : "Hide"} ${name}"><h2>${mp.icon ? `<span class="month-icon">${esc(mp.icon)}</span>` : ""}${name}</h2></button>
+          <span class="month-count">${counts[month]} ${counts[month] === 1 ? "album" : "albuma"}</span>
+          <button class="month-gear" data-act="month-style" aria-label="Style ${name}" title="Style ${name}">⚙︎</button>
+        </header><div class="album-list">`;
     }
-    html += cardHtml(a, i++);
+    if (!monthPref(month).hidden) html += cardHtml(a, i++);
   }
   list.innerHTML = html + `</div></section>`;
   albums.forEach(a => state.rendered.add(a.key));
 }
+
+const cardOpen = a => state.settings.cards === "open" ? !state.openCards.has(a.key) : state.openCards.has(a.key);
 
 function cardHtml(a, i) {
   const mine = isMe(a.owner);
@@ -177,26 +185,36 @@ function cardHtml(a, i) {
   const cmts = D.comments.get(a.key) || [];
   const rx = D.reactions.get(a.key) || [];
   const open = state.openThreads.has(a.key);
+  const expanded = cardOpen(a) || open;
   const grouped = {};
   rx.forEach(r => (grouped[r.emoji] = grouped[r.emoji] || []).push(r.user));
+  const rxSummary = Object.keys(grouped).slice(0, 3).join("");
 
   return `
-  <article class="card ${fresh ? "enter" : ""} ${a.pending ? "pending" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--i:${Math.min(i, 12)}">
-    <div class="card-top">
-      ${coverHtml(a)}
+  <article class="card ${fresh ? "enter fade-in" : ""} ${a.pending ? "pending" : ""} ${expanded ? "open" : ""}" data-key="${esc(a.key)}" style="--m:${monthColor(a.month)};--tint:${monthTint(a.month)};--i:${Math.min(i, 12)}">
+    <div class="card-top" data-act="toggle-card" role="button" tabindex="0" aria-expanded="${expanded}" aria-label="${esc(a.artist)} – ${esc(a.album)}, ${expanded ? "collapse" : "expand"}">
+      ${coverHtml(a, "photo")}
       <div class="card-main">
         <div class="artist">${esc(a.artist)}</div>
         <div class="album-name">${esc(a.album)}</div>
         <div class="meta">
           ${ratingHtml(a.rating)}
-          ${a.year ? `<span class="chip">${esc(String(a.year).replace(/\.$/, ""))}</span>` : ""}
-          ${a.genre ? `<span class="chip">${esc(a.genre)}</span>` : ""}
-          ${a.duration ? `<span class="chip">⏱ ${esc(a.duration)}</span>` : ""}
-          ${a.listenedDate ? `<span class="chip">📅 ${esc(fmtDate(a.listenedDate))}</span>` : ""}
           ${isNew(a) ? `<span class="new-pill">NEW</span>` : ""}
           ${a.pending ? `<span class="pending-pill" title="Saved on this device, waiting to sync">⏳ syncing</span>` : ""}
         </div>
       </div>
+      <div class="peek">
+        ${state.tab === "all" ? avatar(a.owner, 22) : ""}
+        <span class="peek-row">${also.length ? `<span class="av-stack" title="Also heard by ${esc(also.join(", "))}">${also.map(o => avatar(o, 16)).join("")}</span>` : ""}${rxSummary ? `<span class="peek-rx">${rxSummary}</span>` : ""}${cmts.length ? `<span class="peek-c">💬${cmts.length}</span>` : ""}</span>
+        <span class="chev" aria-hidden="true"></span>
+      </div>
+    </div>
+    ${expanded ? `<div class="card-more">
+    <div class="meta">
+      ${a.year ? `<span class="chip">${esc(String(a.year).replace(/\.$/, ""))}</span>` : ""}
+      ${a.genre ? `<span class="chip">${esc(a.genre)}</span>` : ""}
+      ${a.duration ? `<span class="chip">⏱ ${esc(a.duration)}</span>` : ""}
+      ${a.listenedDate ? `<span class="chip">📅 ${esc(fmtDate(a.listenedDate))}</span>` : ""}
     </div>
     ${(a.impression || a.standoutTracks || a.recommend || a.comments) ? `<div class="body">
       ${a.impression ? `<div class="impression">“${esc(a.impression)}”</div>` : ""}
@@ -212,15 +230,16 @@ function cardHtml(a, i) {
       ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}">${e}<small>${us.length}</small></button>`).join("")}
       ${canWrite() ? (state.pickerFor === a.key
         ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}">${e}</button>`).join("")}</span>`
-        : `<button class="rx" data-act="picker" title="React">☺︎<small>+</small></button>`) : ""}
-      <button class="rx" data-act="thread" title="Comments">💬<small>${cmts.length || ""}</small></button>
+        : `<button class="rx" data-act="picker" title="React" aria-label="Add reaction">☺︎<small>+</small></button>`) : ""}
+      <button class="rx" data-act="thread" title="Comments" aria-label="Comments (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
       <span class="grow"></span>
       <span class="actions">
         ${canWrite() && !mine ? `<button class="mini" data-act="listen-me" title="Add to my listen list">＋ 🎧</button>` : ""}
-        ${mine ? `<button class="mini" data-act="edit">✏️ Edit</button><button class="mini danger" data-act="delete" title="Delete">🗑️</button>` : ""}
+        ${mine ? `<button class="mini" data-act="edit">✏️ Edit</button><button class="mini danger" data-act="delete" title="Delete" aria-label="Delete album">🗑️</button>` : ""}
       </span>
     </div>
     ${open ? threadHtml(a, cmts) : ""}
+    </div>` : ""}
   </article>`;
 }
 
@@ -247,7 +266,14 @@ document.addEventListener("click", e => {
   const a = card && D.byKey.get(card.dataset.key);
   const act = btn.dataset.act;
 
-  if (act === "react" && a && canWrite()) {
+  if (act === "toggle-card" && a) {
+    toggleCard(a);
+  } else if (act === "fold-month" || act === "month-style") {
+    const m = +btn.closest(".month").dataset.month;
+    if (act === "month-style") return openMonthStyle(m);
+    const s = state.settings, mp = { ...(s.months[m] || {}) };
+    mp.hidden = !mp.hidden; s.months[m] = mp; saveSettings(); renderList();
+  } else if (act === "react" && a && canWrite()) {
     const on = !(D.reactions.get(a.key) || []).some(r => r.user === state.me && r.emoji === btn.dataset.emoji);
     state.pickerFor = null;
     queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reaction");
@@ -273,7 +299,19 @@ document.addEventListener("click", e => {
     toast("Added to your listen list 🎧");
   }
 });
+function toggleCard(a) {
+  state.openCards.has(a.key) ? state.openCards.delete(a.key) : state.openCards.add(a.key);
+  if (!cardOpen(a)) state.openThreads.delete(a.key);
+  state.pickerFor = null;
+  renderList();
+}
 document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.act === "toggle-card") {
+    e.preventDefault();
+    const a = D.byKey.get(e.target.closest(".card")?.dataset.key);
+    if (a) { toggleCard(a); $(`.card[data-key="${CSS.escape(a.key)}"] .card-top`)?.focus(); }
+    return;
+  }
   if (e.key === "Enter" && e.target.dataset?.cmt) {
     e.preventDefault();
     const a = D.byKey.get(e.target.dataset.cmt);
@@ -388,6 +426,8 @@ function jumpTo(key, openThread) {
   if (!a) return;
   state.tab = a.owner; state.search = "";
   if (openThread) state.openThreads.add(key);
+  if (!cardOpen(a)) toggleCard(a);
+  if (monthPref(a.month).hidden) { state.settings.months[a.month].hidden = false; saveSettings(); }
   if ($("#search")) $("#search").value = "";
   renderTabs(); renderMain();
   const el = $(`.card[data-key="${CSS.escape(key)}"]`);

@@ -28,14 +28,33 @@ const BG_SETS = {
   stars:   ["✦", "✧", "⋆", "˚", "✩", "☾", "✶", "·"],
   kaomoji: ["(◕‿◕)", "ʕ•ᴥ•ʔ", "(｡♥‿♥｡)", "≽^•⩊•^≼", "♪(´▽｀)", "ᕕ( ᐛ )ᕗ", "(ﾉ◕ヮ◕)ﾉ", "( ˘▽˘)っ♨"],
   emoji:   ["🎧", "💿", "🎵", "🎸", "🥁", "🎹", "📻", "🎤", "🎷"],
+  film:    ["📼", "🎞", "✶", "◐", "▭", "◉", "⋆", "♪"],
   shapes:  ["○", "△", "□", "◇", "✕", "◯", "⬡", "◠"],
   mix:     ["♪", "♫", "✦", "⋆", "☾", "◯", "ʕ•ᴥ•ʔ", "𝄞", "✧"]
 };
+/** Whole-app looks. Each one brings its own palette, month colours, font and card tint; users can still tweak on top. */
+const STYLES = {
+  default: {
+    name: "Midnight", desc: "Dark, neon accents", accent: THEMES.coral, font: FONTS.system, tint: 18,
+    monthColors: DEFAULT_MONTH_COLORS, bgSet: "notes", swatch: ["#0f0f11", "#ff6b6b", "#6ec6ff"], themeColor: "#0f0f11"
+  },
+  film: {
+    name: "Retro Film", desc: "Film grain, polaroids, faded colours", accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
+    monthColors: ["#7A9CA8", "#B98B9E", "#8FA37E", "#E8B4B8", "#A8B26B", "#D9A441", "#C9734F", "#D4A574", "#8B4513", "#B5562E", "#6B7280", "#4A7B7C"],
+    bgSet: "film", swatch: ["#F5E6C8", "#D4A574", "#4A7B7C", "#E8B4B8"], themeColor: "#F5E6C8"
+  }
+};
+const MONTH_ICONS = ["", "❄", "♥", "✿", "☂", "❀", "☀", "⛱", "✦", "🍂", "☾", "☁", "★", "♪", "📼", "📷"];
+const style = () => STYLES[state.settings.style] || STYLES.default;
 const DEFAULT_SETTINGS = {
-  accent: THEMES.coral, font: "system", view: "card", tint: 18,
-  monthColors: DEFAULT_MONTH_COLORS.slice(),
+  style: "default",
+  accent: null,           // null = the style's own accent
+  font: "auto",           // auto = the style's own font
+  cards: "collapsed",     // collapsed | open
+  tint: null,             // null = the style's tint
+  months: {},             // per-month tweaks: { "11": { color, tint, icon, hidden } }
   bg: { on: true, set: "notes", density: 18, speed: 1, opacity: 1, color: "months" },
-  updatedAt: 0
+  sv: 2, updatedAt: 0
 };
 
 // ═══════════════ STATE ═══════════════
@@ -54,6 +73,7 @@ const state = {
   syncing: false,
   lastError: "",
   openThreads: new Set(),
+  openCards: new Set(),
   pickerFor: null,
   rendered: new Set(),      // album keys already shown (for enter animations)
   known: null,              // Set of other users' album keys the user has "seen"
@@ -108,7 +128,10 @@ function toast(msg, ms = 2600) {
   t.textContent = msg; t.classList.add("show");
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
 }
-const monthColor = m => (state.settings.monthColors || DEFAULT_MONTH_COLORS)[(m || new Date().getMonth() + 1) - 1] || "var(--accent)";
+const monthPref = m => state.settings.months?.[m || 0] || {};
+const monthColor = m => monthPref(m).color || style().monthColors[(m || new Date().getMonth() + 1) - 1] || "var(--accent)";
+const monthTint = m => (monthPref(m).tint ?? state.settings.tint ?? style().tint) + "%";
+const allMonthColors = () => MONTH_NAMES.map((_, i) => monthColor(i + 1));
 const isMe = name => state.me && state.me !== GUEST && name === state.me;
 const canWrite = () => state.me && state.me !== GUEST;
 
@@ -333,9 +356,20 @@ function loadSettings() {
 function mergeSettings(s) {
   const d = structuredClone(DEFAULT_SETTINGS);
   if (!s) return d;
-  const out = { ...d, ...s, bg: { ...d.bg, ...(s.bg || {}) } };
-  if (!Array.isArray(out.monthColors) || out.monthColors.length !== 12) out.monthColors = d.monthColors;
-  if (s.theme && !s.accent) out.accent = THEMES[s.theme] || d.accent; // old settings format
+  const out = { ...d, ...s, bg: { ...d.bg, ...(s.bg || {}) }, months: { ...(s.months || {}) } };
+  if (!s.sv) { // settings from before styles existed
+    if (s.theme && !s.accent) out.accent = THEMES[s.theme] || null;
+    if (out.accent === THEMES.coral) out.accent = null;
+    if (out.font === "system") out.font = "auto";
+    if (out.tint === 18) out.tint = null;
+    out.cards = "collapsed";
+    if (Array.isArray(s.monthColors)) s.monthColors.forEach((c, i) => {
+      if (c && c.toLowerCase() !== DEFAULT_MONTH_COLORS[i].toLowerCase()) out.months[i + 1] = { ...(out.months[i + 1] || {}), color: c };
+    });
+    delete out.monthColors; delete out.view; delete out.theme;
+    out.sv = 2;
+  }
+  if (!STYLES[out.style]) out.style = "default";
   return out;
 }
 let settingsSyncTimer = null;
@@ -359,10 +393,12 @@ function adoptServerSettings() {
 
 function applyTheme() {
   const s = state.settings, r = document.documentElement.style;
-  r.setProperty("--accent", s.accent);
-  r.setProperty("--font", FONTS[s.font] || FONTS.system);
-  r.setProperty("--tint", (s.tint ?? 18) + "%");
-  document.body.classList.toggle("view-compact", s.view === "compact");
+  const st = style();
+  document.documentElement.dataset.style = s.style;
+  r.setProperty("--accent", s.accent || st.accent);
+  r.setProperty("--font", s.font === "auto" ? st.font : FONTS[s.font] || st.font);
+  r.setProperty("--tint", (s.tint ?? st.tint) + "%");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", st.themeColor);
   renderBg();
 }
 

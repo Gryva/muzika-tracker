@@ -357,7 +357,7 @@ function openSettings(section) {
   const ov = document.createElement("div");
   ov.className = "overlay";
   ov.innerHTML = `<div class="sheet">
-    <div class="sheet-header"><div class="sheet-title">⚙️ Make it yours</div><button class="btn btn-ghost btn-icon" data-close>✕</button></div>
+    <div class="sheet-header"><div class="sheet-title">⚙️ Make it yours</div><button class="btn btn-ghost btn-icon" data-close aria-label="Close">✕</button></div>
     <div class="sheet-body">
       ${me ? `<div class="section-title" id="sec-profile">👤 Profile</div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
@@ -367,13 +367,17 @@ function openSettings(section) {
       </div>
       <div class="swatches" id="s-ucolor">${USER_COLORS_UI.map(c => `<span class="sw ${c === me.color ? "on" : ""}" data-c="${c}" style="background:${c};width:26px;height:26px"></span>`).join("")}</div>` : ""}
 
-      <div class="section-title">🎨 Accent colour</div>
-      <div class="swatches" id="s-accent">${Object.values(THEMES).map(c => `<span class="sw ${c === s.accent ? "on" : ""}" data-c="${c}" style="background:${c}"></span>`).join("")}
-        <input type="color" class="sw-input" id="s-accent-custom" value="${esc(s.accent)}" title="Custom colour"></div>
+      <div class="section-title">🎞️ Style</div>
+      <div class="styles" id="s-style">${Object.entries(STYLES).map(([k, st]) => `
+        <button class="style-card ${s.style === k ? "on" : ""}" data-v="${k}" aria-pressed="${s.style === k}">
+          <span class="style-swatch">${st.swatch.map(c => `<i style="background:${c}"></i>`).join("")}</span>
+          <b style="font-family:${st.font}">${esc(st.name)}</b><small>${esc(st.desc)}</small>
+        </button>`).join("")}</div>
+      <div class="hint">Month colours live on each month now – tap ⚙︎ next to a month's name.</div>
 
-      <div class="section-title">🗓️ Month colours <button class="mini" id="s-mreset">Reset</button></div>
-      <div class="months">${MONTH_NAMES.map((m, i) => `<label class="month-sw"><input type="color" data-m="${i}" value="${esc(s.monthColors[i])}">${m.slice(0, 3)}</label>`).join("")}</div>
-      <div class="fg" style="margin-top:12px"><label class="fl">Card tint <small id="s-tint-v">${s.tint}%</small></label><input type="range" class="range" id="s-tint" min="0" max="45" value="${s.tint}"></div>
+      <div class="section-title">🎨 Accent colour <button class="mini" id="s-accent-reset">Style default</button></div>
+      <div class="swatches" id="s-accent">${Object.values(THEMES).map(c => `<button class="sw ${c === s.accent ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Accent ${c}"></button>`).join("")}
+        <input type="color" class="sw-input" id="s-accent-custom" value="${esc(s.accent || style().accent)}" title="Custom colour" aria-label="Custom accent colour"></div>
 
       <div class="section-title">✨ Floating background</div>
       <div class="choice" id="s-bgset">
@@ -390,8 +394,9 @@ function openSettings(section) {
       </div>
 
       <div class="section-title">🔤 Look</div>
-      <div class="choice" id="s-font">${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${k}</button>`).join("")}</div>
-      <div class="choice" id="s-view" style="margin-top:8px">${[["card", "📋 Cards"], ["compact", "⚡ Compact"]].map(([k, l]) => `<button data-v="${k}" class="${s.view === k ? "on" : ""}">${l}</button>`).join("")}</div>
+      <div class="choice" id="s-font"><button data-v="auto" class="${s.font === "auto" ? "on" : ""}">style</button>${Object.keys(FONTS).map(k => `<button data-v="${k}" class="${s.font === k ? "on" : ""}" style="font-family:${FONTS[k]}">${k}</button>`).join("")}</div>
+      <div class="fl" style="margin-top:14px">Album cards</div>
+      <div class="choice" id="s-cards">${[["collapsed", "Tidy – tap to open"], ["open", "Always open"]].map(([k, l]) => `<button data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div>
 
       <div class="section-title">🛟 Safety</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -415,18 +420,27 @@ function openSettings(section) {
   }));
   const rerender = () => { saveSettings(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderMain(); };
 
+  $$("#s-style .style-card", ov).forEach(b => b.addEventListener("click", () => {
+    s.style = b.dataset.v;
+    // a new look starts from its own colours: drop accent + month colour overrides (icons / folded months stay)
+    s.accent = null; s.tint = null;
+    Object.values(s.months).forEach(mp => { delete mp.color; delete mp.tint; });
+    if (Object.values(STYLES).some(x => x.bgSet === s.bg.set)) s.bg.set = style().bgSet;
+    $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
+    $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on"));
+    $("#s-accent-custom", ov).value = style().accent;
+    rerender();
+  }));
   $$("#s-accent .sw", ov).forEach(el => el.addEventListener("click", () => {
     $$("#s-accent .sw", ov).forEach(x => x.classList.toggle("on", x === el)); s.accent = el.dataset.c; saveSettings();
   }));
+  $("#s-accent-reset", ov).addEventListener("click", () => { s.accent = null; $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on")); $("#s-accent-custom", ov).value = style().accent; saveSettings(); });
   $("#s-accent-custom", ov).addEventListener("input", e => { s.accent = e.target.value; $$("#s-accent .sw", ov).forEach(x => x.classList.remove("on")); saveSettings(); });
-  $$("[data-m]", ov).forEach(i => i.addEventListener("input", () => { s.monthColors[+i.dataset.m] = i.value; rerender(); }));
-  $("#s-mreset", ov).addEventListener("click", () => { s.monthColors = DEFAULT_MONTH_COLORS.slice(); $$("[data-m]", ov).forEach(i => i.value = s.monthColors[+i.dataset.m]); rerender(); });
-  $("#s-tint", ov).addEventListener("input", e => { s.tint = +e.target.value; $("#s-tint-v", ov).textContent = s.tint + "%"; saveSettings(); });
   choice("#s-bgset", v => { if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
   choice("#s-bgcolor", v => { s.bg.color = v; saveSettings(); });
   ["density", "speed", "opacity"].forEach(k => $("#s-" + k, ov).addEventListener("change", e => { s.bg[k] = +e.target.value; s.bg.on = true; saveSettings(); }));
   choice("#s-font", v => { s.font = v; saveSettings(); });
-  choice("#s-view", v => { s.view = v; rerender(); });
+  choice("#s-cards", v => { s.cards = v; state.openCards = new Set(); rerender(); });
 
   $("#s-backup", ov).addEventListener("click", () => {
     const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), data: state.view, pending: state.outbox }, null, 2)], { type: "application/json" });
@@ -456,17 +470,60 @@ function openSettings(section) {
   }
 }
 
+// ═══════════════ per-month style sheet ═══════════════
+function openMonthStyle(m) {
+  const s = state.settings;
+  const name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
+  const mp = () => (s.months[m] = s.months[m] || {});
+  const palette = [...new Set([...style().monthColors, ...Object.values(THEMES)])];
+  const cur = monthColor(m);
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="sheet sheet-sm" role="dialog" aria-label="Style ${esc(name)}" style="--m:${cur}">
+    <div class="sheet-header"><div class="sheet-title month-preview">${mp().icon ? `<span class="month-icon">${esc(mp().icon)}</span>` : ""}${esc(name)}</div><button class="btn btn-ghost btn-icon" data-close aria-label="Close">✕</button></div>
+    <div class="sheet-body">
+      <div class="fl">Colour</div>
+      <div class="swatches" id="m-color">${palette.map(c => `<button class="sw ${c.toLowerCase() === String(cur).toLowerCase() ? "on" : ""}" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join("")}
+        <input type="color" class="sw-input" id="m-custom" value="${esc(/^#/.test(cur) ? cur : "#888888")}" aria-label="Custom colour"></div>
+      <div class="fg" style="margin-top:16px"><label class="fl" for="m-tint">Card tint <small id="m-tint-v">${monthTint(m)}</small></label><input type="range" class="range" id="m-tint" min="0" max="60" value="${parseInt(monthTint(m))}"></div>
+      <div class="fl">Symbol</div>
+      <div class="icons" id="m-icon">${MONTH_ICONS.map(ic => `<button class="${(mp().icon || "") === ic ? "on" : ""}" data-v="${esc(ic)}" aria-label="${ic ? "Symbol " + ic : "No symbol"}">${ic || "∅"}</button>`).join("")}</div>
+      <div class="fg" style="margin-top:16px"><label class="toggle"><input type="checkbox" id="m-hidden" ${mp().hidden ? "checked" : ""}> Fold this month (hide its albums)</label></div>
+      <button class="btn btn-ghost btn-sm" id="m-reset">Reset ${esc(name)}</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  $$("[data-close]", ov).forEach(b => b.addEventListener("click", close));
+  ov.addEventListener("click", e => { if (e.target === ov) close(); });
+  const apply = () => {
+    const c = monthColor(m);
+    $(".sheet", ov).style.setProperty("--m", c);
+    $(".month-preview", ov).innerHTML = (mp().icon ? `<span class="month-icon">${esc(mp().icon)}</span>` : "") + esc(name);
+    saveSettings(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderList();
+  };
+  $$("#m-color .sw", ov).forEach(b => b.addEventListener("click", () => {
+    $$("#m-color .sw", ov).forEach(x => x.classList.toggle("on", x === b)); mp().color = b.dataset.c; $("#m-custom", ov).value = b.dataset.c; apply();
+  }));
+  $("#m-custom", ov).addEventListener("input", e => { $$("#m-color .sw", ov).forEach(x => x.classList.remove("on")); mp().color = e.target.value; apply(); });
+  $("#m-tint", ov).addEventListener("input", e => { mp().tint = +e.target.value; $("#m-tint-v", ov).textContent = e.target.value + "%"; apply(); });
+  $$("#m-icon button", ov).forEach(b => b.addEventListener("click", () => {
+    $$("#m-icon button", ov).forEach(x => x.classList.toggle("on", x === b)); mp().icon = b.dataset.v; apply();
+  }));
+  $("#m-hidden", ov).addEventListener("change", e => { mp().hidden = e.target.checked; apply(); });
+  $("#m-reset", ov).addEventListener("click", () => { delete s.months[m]; close(); apply(); });
+}
+
 // ═══════════════ floating background ═══════════════
 let bgSig = "";
 function renderBg() {
   const el = $("#bg"), b = state.settings.bg;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const sig = JSON.stringify([b, state.settings.accent, state.settings.monthColors, reduce]);
+  const sig = JSON.stringify([b, state.settings.accent, state.settings.style, allMonthColors(), reduce]);
   if (sig === bgSig) return;
   bgSig = sig;
   if (!b.on || reduce) { el.innerHTML = ""; return; }
   const syms = BG_SETS[b.set] || BG_SETS.notes;
-  const colors = b.color === "accent" ? [state.settings.accent] : b.color === "white" ? ["#ffffff"] : state.settings.monthColors;
+  const colors = b.color === "accent" ? [state.settings.accent || style().accent] : b.color === "white" ? [state.settings.style === "film" ? "#4E342E" : "#ffffff"] : allMonthColors();
   const n = Math.round(b.density);
   let h = "";
   for (let i = 0; i < n; i++) {

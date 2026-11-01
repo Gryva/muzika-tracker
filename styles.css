@@ -1993,3 +1993,15 @@ button.logo:active { transform: scale(.96); }
 [data-style="vivid"] .card .track.whole { background: #000; color: var(--vb-lime); }
 .rules-page .welcome-hi { display: inline-block; }
 .rules-page .welcome .login-title { display: block; }
+
+/* ═════════════ v20: share + credits at the bottom of "O aplikaciji" ═════════════ */
+.welcome-foot { margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--soft); display: flex; flex-direction: column; gap: 12px; }
+.welcome-foot .share-app { width: 100%; margin: 0; font: inherit; font-size: 14px; font-weight: 650; text-align: left; color: var(--text); cursor: pointer; }
+.made-by { margin: 0; text-align: center; font-size: 13px; color: var(--text-3); }
+.made-by b { color: var(--text); letter-spacing: .04em; }
+.welcome-screen .welcome-foot { margin-bottom: 14px; }
+[data-style="pop"] .welcome-foot { border-top: 3px solid #000; }
+[data-style="pop"] .welcome-foot .share-app { background: var(--nb-yellow); border: 3px solid #000; border-radius: 0; box-shadow: 4px 4px 0 #000; color: #000; }
+[data-style="clear"] .made-by { font-size: 16px; color: #374151; }
+[data-style="mag"] .made-by { font-family: Georgia, serif; font-style: italic; }
+[data-style="vivid"] .welcome-foot .share-app { background: var(--vb-cyan); color: #000; border: none; font-weight: 800; }

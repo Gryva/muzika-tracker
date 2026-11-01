@@ -328,7 +328,9 @@ document.addEventListener("click", e => {
   const a = card && D.byKey.get(card.dataset.key);
   const act = btn.dataset.act;
 
-  if (act === "toggle-card" && a) {
+  if (act === "share-app") {
+    shareApp();
+  } else if (act === "toggle-card" && a) {
     toggleCard(a);
   } else if (act === "fold-year") {
     const y = btn.closest(".year").dataset.year, s = state.settings;

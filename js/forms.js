@@ -45,8 +45,19 @@ function welcomeHtml() {
       <li><span class="r-ic" aria-hidden="true">🔗</span><span>Šeranje linka dobrim ljudima je dobro došlo!</span></li>
     </ul>
     <p class="welcome-sign">Zabavite se i vidimo se u tablicama!<br><small>– moderator, Osto</small></p>
+    <div class="welcome-foot">
+      <button type="button" class="sheet-link share-app" data-act="share-app">🔗 Podijeli Muziku s prijateljima <span aria-hidden="true">↗</span></button>
+      <p class="made-by">Aplikaciju napravio <b>Griva</b> 🎧</p>
+    </div>
   </div>`;
 }
+/** Share the app: the link always opens on "Tko sluša?" so nobody lands in someone else's table. */
+async function shareApp() {
+  const url = location.origin + location.pathname + "?tko";
+  try { if (navigator.share) { await navigator.share({ title: "Muzika", text: "Upiši što slušaš 🎧", url }); return; } } catch (e) { if (e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(url); toast("Link kopiran 📋"); } catch (e) { prompt("Kopiraj link:", url); }
+}
+
 /** The welcome text as a full page – from the app name or Settings → Pravila i upute. */
 function openRulesPage() {
   if ($(".rules-page")) return;
@@ -577,11 +588,7 @@ function openSettings(section) {
     setTimeout(() => URL.revokeObjectURL(link.href), 2000);
   });
   $("#s-rules", ov).addEventListener("click", () => openRulesPage());
-  $("#s-share", ov).addEventListener("click", async () => {
-    const url = location.origin + location.pathname + "?tko";
-    try { if (navigator.share) { await navigator.share({ title: "Muzika", text: "Upiši što slušaš 🎧", url }); return; } } catch (e) { if (e.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(url); toast("Link kopiran 📋"); } catch (e) { prompt("Kopiraj link:", url); }
-  });
+  $("#s-share", ov).addEventListener("click", shareApp);
   $("#s-sync", ov).addEventListener("click", () => { flush(); refresh(true); toast("Sinkroniziram…"); });
   $("#s-switch", ov).addEventListener("click", () => { close(); state.me = null; localStorage.removeItem("muzika_user"); renderLogin(); });
 

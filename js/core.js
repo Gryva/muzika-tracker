@@ -14,6 +14,11 @@ const GUEST = "__guest__";
 const MONTH_NAMES = ["Siječanj", "Veljača", "Ožujak", "Travanj", "Svibanj", "Lipanj", "Srpanj", "Kolovoz", "Rujan", "Listopad", "Studeni", "Prosinac"];
 const DEFAULT_MONTH_COLORS = ["#6ec6ff", "#b39dff", "#6fe3a1", "#ffd166", "#a3e635", "#ffb36b", "#ff7b7b", "#ff8fc8", "#e0a96d", "#ff8a3d", "#a0a7c8", "#7fd8e8"];
 const REACTIONS = ["🔥", "❤️", "😍", "🤘", "😮", "💤"];
+/** The bigger picker – used once the Google script accepts any emoji (reactionsAllowed: "any"). */
+const REACTIONS_MORE = ["🔥", "❤️", "😍", "🤘", "😮", "💤", "😂", "🥲", "😭", "🤯", "🥵", "🥶", "😴", "🤔", "🙄", "😬",
+  "👏", "🙌", "👍", "👎", "💯", "✨", "💀", "🫠", "🎸", "🥁", "🎹", "🎺", "🕺", "💃", "🌙", "🌈"];
+const reactionChoices = () => state.snap?.reactionsAllowed === "any" ? REACTIONS_MORE
+  : Array.isArray(state.snap?.reactionsAllowed) ? state.snap.reactionsAllowed : REACTIONS;
 const THEMES = {
   coral: "#ff6b6b", ocean: "#4dabf7", mint: "#38d9a9", lemon: "#ffd43b", grape: "#b197fc", rose: "#f783ac", orange: "#ff922b"
 };

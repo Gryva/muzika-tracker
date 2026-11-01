@@ -295,9 +295,9 @@ function cardHtml(a, i) {
       ${a.comments ? `<p class="own-note"><span class="mini-label">Komentar</span>${esc(a.comments)}</p>` : ""}
       ${also.length ? `<div class="also-line">${also.map(o => avatar(o, 18)).join("")}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
       <div class="social">
-        ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))}" aria-label="${e} ${us.length}">${e}<small>${us.length}</small></button>`).join("")}
+        ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))} · drži za popis" aria-label="${e} ${us.length}: ${esc(us.join(", "))}">${e}<small>${us.length}</small></button>`).join("")}
         ${canWrite() ? (state.pickerFor === a.key
-          ? `<span class="rx-picker">${REACTIONS.map(e => `<button data-act="react" data-emoji="${e}" aria-label="Reagiraj ${e}">${e}</button>`).join("")}</span>`
+          ? `<span class="rx-picker ${reactionChoices().length > 8 ? "big" : ""}" role="group" aria-label="Odaberi reakciju">${reactionChoices().map(e => `<button data-act="react" data-emoji="${e}" aria-label="Reagiraj ${e}">${e}</button>`).join("")}</span>`
           : `<button class="rx" data-act="picker" title="Reagiraj" aria-label="Dodaj reakciju">☺︎<small>+</small></button>`) : ""}
         <button class="rx ${open ? "mine" : ""}" data-act="thread" aria-expanded="${open}" aria-label="Komentari (${cmts.length})">💬<small>${cmts.length || ""}</small></button>
         <span class="grow"></span>
@@ -613,3 +613,47 @@ function rebuild() {
   if (!state.me) return;
   renderHeader(); renderTabs(); renderMain();
 }
+
+
+// ═══════════════ who reacted: hold (or right-click) a reaction ═══════════════
+let rxHold = null, rxSwallowClick = false;
+function closeWhoReacted() { $(".rx-who")?.remove(); }
+function openWhoReacted(chip) {
+  closeWhoReacted();
+  const key = chip.closest(".card")?.dataset.key;
+  const list = (D.reactions.get(key) || []).slice().sort((x, y) => (x.ts || 0) - (y.ts || 0));
+  if (!list.length) return;
+  const byUser = new Map();
+  list.forEach(r => byUser.set(r.user, [...(byUser.get(r.user) || []), r.emoji]));
+  const pressed = chip.dataset.emoji;
+  const rows = [...byUser].sort(([, a], [, b]) => b.includes(pressed) - a.includes(pressed));
+  const pop = document.createElement("div");
+  pop.className = "rx-who"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Tko je reagirao");
+  pop.innerHTML = `<div class="rx-who-head">Reakcije <small>${list.length}</small></div>
+    <ul>${rows.map(([u, es]) => `<li>${avatar(u, 24)}<span class="rx-who-name">${isMe(u) ? "Ja" : esc(u)}</span><span class="rx-who-e">${es.join(" ")}</span></li>`).join("")}</ul>`;
+  document.body.appendChild(pop);
+  const r = chip.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  const left = Math.max(10, Math.min(innerWidth - w - 10, r.left + r.width / 2 - w / 2));
+  const top = r.top - h - 10 > 60 ? r.top - h - 10 : r.bottom + 10;
+  pop.style.left = left + "px"; pop.style.top = top + "px";
+  navigator.vibrate?.(12);
+}
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest(".rx-who")) closeWhoReacted();
+  const chip = e.target.closest('.social .rx[data-act="react"]');
+  if (!chip) return;
+  const x = e.clientX, y = e.clientY;
+  clearTimeout(rxHold?.t);
+  rxHold = { x, y, t: setTimeout(() => { rxSwallowClick = true; openWhoReacted(chip); }, 450) };
+});
+document.addEventListener("pointermove", e => { if (rxHold && Math.hypot(e.clientX - rxHold.x, e.clientY - rxHold.y) > 10) clearTimeout(rxHold.t); });
+["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => clearTimeout(rxHold?.t)));
+// the click that ends a long-press must not also toggle the reaction
+document.addEventListener("click", e => { if (rxSwallowClick) { rxSwallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener("contextmenu", e => {
+  const chip = e.target.closest('.social .rx[data-act="react"]');
+  if (!chip) return;
+  e.preventDefault(); clearTimeout(rxHold?.t); openWhoReacted(chip);
+});
+window.addEventListener("scroll", closeWhoReacted, { passive: true });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeWhoReacted(); });

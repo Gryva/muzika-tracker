@@ -187,7 +187,7 @@ function buildPayload() {
   return {
     sheetUrl: ss.getUrl(),
     serverTime: Date.now(),
-    reactionsAllowed: REACTIONS,
+    reactionsAllowed: "any",
     users: users.map(function (u) {
       var s = null;
       try { s = u.settings ? JSON.parse(u.settings) : null; } catch (e) {}
@@ -1006,9 +1006,17 @@ function deleteComment(p) {
   return { success: true, alreadyGone: true };
 }
 
+/** Any single emoji is a fine reaction (no text, nothing long). */
+function isReactionEmoji(e) {
+  e = String(e || "");
+  if (!e || e.length > 16) return false;
+  try { return /\p{Extended_Pictographic}/u.test(e) && !/[\p{L}<>"]/u.test(e); }
+  catch (x) { return REACTIONS.indexOf(e) >= 0; }
+}
+
 function setReaction(p) {
   var user = requireUser(p.user).name;
-  if (REACTIONS.indexOf(p.emoji) < 0) throw new Error("Unknown reaction");
+  if (!isReactionEmoji(p.emoji)) throw new Error("Unknown reaction");
   var rows = readTab("reactions");
   var existing = rows.filter(function (r) { return r.key === p.key && r.user === user && r.emoji === p.emoji; });
   if (p.on && !existing.length) {

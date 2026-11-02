@@ -295,7 +295,7 @@ function cardHtml(a, i) {
       ${a.comments ? `<p class="own-note"><span class="mini-label">Komentar</span>${esc(a.comments)}</p>` : ""}
       ${also.length ? `<div class="also-line">${also.map(o => avatar(o, 18)).join("")}<span>Ima ga i u tablici: ${esc(also.join(", "))}</span></div>` : ""}
       <div class="social">
-        ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${e}" title="${esc(us.join(", "))} · drži za popis" aria-label="${e} ${us.length}: ${esc(us.join(", "))}">${e}<small>${us.length}</small></button>`).join("")}
+        ${Object.entries(grouped).map(([e, us]) => `<button class="rx ${canWrite() && us.includes(state.me) ? "mine" : ""}" data-act="react" data-emoji="${esc(e)}" title="${esc(us.join(", "))} · drži za popis" aria-label="${esc(e)} ${us.length}: ${esc(us.join(", "))}">${esc(e)}<small>${us.length}</small></button>`).join("")}
         ${canWrite() ? (state.pickerFor === a.key
           ? `<span class="rx-picker ${reactionChoices().length > 8 ? "big" : ""}" role="group" aria-label="Odaberi reakciju">${reactionChoices().map(e => `<button data-act="react" data-emoji="${e}" aria-label="Reagiraj ${e}">${e}</button>`).join("")}</span>`
           : `<button class="rx" data-act="picker" title="Reagiraj" aria-label="Dodaj reakciju">☺︎<small>+</small></button>`) : ""}
@@ -357,7 +357,7 @@ document.addEventListener("click", e => {
     const on = !(D.reactions.get(a.key) || []).some(r => r.user === state.me && r.emoji === btn.dataset.emoji);
     state.pickerFor = null;
     queue({ action: "react", key: a.key, owner: a.owner, user: state.me, emoji: btn.dataset.emoji, on, ts: Date.now() }, "Reakcija");
-    requestAnimationFrame(() => $(`.card[data-key="${CSS.escape(a.key)}"] .rx[data-emoji="${btn.dataset.emoji}"]`)?.classList.add("pop"));
+    requestAnimationFrame(() => $(`.card[data-key="${CSS.escape(a.key)}"] .rx[data-emoji="${CSS.escape(btn.dataset.emoji)}"]`)?.classList.add("pop"));
   } else if (act === "links" && a) {
     state.linksFor = state.linksFor === a.key ? null : a.key; state.moreFor = null; renderList();
   } else if (act === "more" && a) {
@@ -630,7 +630,7 @@ function openWhoReacted(chip) {
   const pop = document.createElement("div");
   pop.className = "rx-who"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Tko je reagirao");
   pop.innerHTML = `<div class="rx-who-head">Reakcije <small>${list.length}</small></div>
-    <ul>${rows.map(([u, es]) => `<li>${avatar(u, 24)}<span class="rx-who-name">${isMe(u) ? "Ja" : esc(u)}</span><span class="rx-who-e">${es.join(" ")}</span></li>`).join("")}</ul>`;
+    <ul>${rows.map(([u, es]) => `<li>${avatar(u, 24)}<span class="rx-who-name">${isMe(u) ? "Ja" : esc(u)}</span><span class="rx-who-e">${es.map(esc).join(" ")}</span></li>`).join("")}</ul>`;
   document.body.appendChild(pop);
   const r = chip.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   const left = Math.max(10, Math.min(innerWidth - w - 10, r.left + r.width / 2 - w / 2));

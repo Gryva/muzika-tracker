@@ -386,7 +386,7 @@ function addUser(p) {
     sheet.getRange(1, 1, 1, DEFAULT_HEADERS.length).setValues([DEFAULT_HEADERS]).setFontWeight("bold");
   }
   var count = readTab("users").length;
-  var u = { name: name, sheet: sheetName, avatar: p.avatar || "", color: p.color || USER_COLORS[count % USER_COLORS.length], settings: "", created: String(Date.now()) };
+  var u = { name: name, sheet: sheetName, avatar: p.avatar || "", color: /^#[0-9a-fA-F]{3,8}$/.test(String(p.color || "")) ? p.color : USER_COLORS[count % USER_COLORS.length], settings: "", created: String(Date.now()) };
   appendObj("users", u);
   return { success: true, user: { name: u.name, sheet: u.sheet, avatar: u.avatar, color: u.color, settings: null } };
 }
@@ -395,7 +395,7 @@ function updateUser(p) {
   var u = requireUser(p.name);
   var changes = {};
   if (p.avatar !== undefined) { checkImage(p.avatar, 60000); changes.avatar = p.avatar; }
-  if (p.color !== undefined) changes.color = String(p.color).slice(0, 20);
+  if (p.color !== undefined) changes.color = /^#[0-9a-fA-F]{3,8}$/.test(String(p.color)) ? String(p.color) : "";
   if (p.settings !== undefined) {
     var s = typeof p.settings === "string" ? p.settings : JSON.stringify(p.settings);
     if (s.length > 40000) throw new Error("Settings too large");
@@ -490,7 +490,7 @@ function addAlbum(p, pre) {
 
   var key = u.name + "|" + normKey(p.artist, p.album);
   var meta = { owner: u.name, artist: p.artist, album: p.album, clientId: p.clientId || "", created: String(Date.now()) };
-  META_FIELDS.forEach(function (f) { if (p[f]) meta[f] = p[f]; });
+  META_FIELDS.forEach(function (f) { if (p[f] && /^https:\/\/[^\s"'<>]+$/i.test(String(p[f]))) meta[f] = String(p[f]).slice(0, 500); });
   if (p.cover) meta.coverSource = p.coverSource || "user";
   if (lookup) {
     meta.lookedUp = String(Date.now());
@@ -520,7 +520,7 @@ function updateAlbum(p) {
   var meta = { owner: owner };
   if (p.artist !== undefined) meta.artist = p.artist;
   if (p.album !== undefined) meta.album = p.album;
-  META_FIELDS.forEach(function (f) { if (p[f] !== undefined) meta[f] = p[f]; });
+  META_FIELDS.forEach(function (f) { if (p[f] !== undefined) meta[f] = (p[f] === "" || /^https:\/\/[^\s"'<>]+$/i.test(String(p[f]))) ? String(p[f]).slice(0, 500) : ""; });
   if (p.cover !== undefined) meta.coverSource = p.cover ? (p.coverSource || "user") : "";
   if (p.cover === "") meta.lookedUp = String(Date.now()); // user removed cover: don't auto-fetch again
   upsertMeta(newKey, meta);
@@ -597,7 +597,10 @@ function writeMark(sheet, row, cols, mark) {
   if (mark === "re") bc.setBackground(MARK_COLORS.re);
 }
 
+/** Generous caps so a pasted wall of text (or a script) can't bloat the Sheet. */
+var FIELD_MAX = { artist: 200, album: 200, year: 20, genre: 80, duration: 40, rating: 20, impression: 3000, standoutTracks: 1000, recommend: 40, comments: 2000 };
 function writeFields(sheet, row, cols, p) {
+  Object.keys(FIELD_MAX).forEach(function (k) { if (p[k] != null && String(p[k]).length > FIELD_MAX[k]) p[k] = String(p[k]).slice(0, FIELD_MAX[k]); });
   for (var f = 0; f < FIELDS.length; f++) {
     var field = FIELDS[f][0];
     var c = cols[field];

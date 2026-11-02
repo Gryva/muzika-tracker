@@ -447,7 +447,9 @@ function openSettings(section) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
         <button class="btn btn-ghost btn-sm" id="s-backup">💾 Preuzmi kopiju</button>
         <button class="btn btn-ghost btn-sm" id="s-sync">🔄 Sinkroniziraj sad</button>
+        ${lsGet(FAILED_KEY, []).length ? `<button class="btn btn-ghost btn-sm" id="s-retry">⚠️ Ponovno pošalji (${lsGet(FAILED_KEY, []).length})</button>` : ""}
       </div>
+      ${lsGet(FAILED_KEY, []).length ? `<div class="hint warn">Tablica je odbila ${lsGet(FAILED_KEY, []).length === 1 ? "jednu promjenu" : lsGet(FAILED_KEY, []).length + " promjene"}: ${lsGet(FAILED_KEY, []).slice(-3).map(f => esc((f.payload.artist || "") + " – " + (f.payload.album || ""))).join(", ")}. Sačuvano na ovom uređaju.</div>` : ""}
       <div class="hint">${state.outbox.filter(o => !o.done).length ? `⏳ Promjena na čekanju: ${state.outbox.filter(o => !o.done).length} – spremljene su na uređaju.` : "✓ Sve je sinkronizirano."} Aplikacija čuva kopiju svih podataka na uređaju, pa radi i bez interneta.</div>
       </details>
       </div>
@@ -488,6 +490,7 @@ function openSettings(section) {
   $("#s-rules", ov).addEventListener("click", () => openRulesPage());
   $("#s-share", ov).addEventListener("click", shareApp);
   $("#s-sync", ov).addEventListener("click", () => { flush(); refresh(true); toast("Sinkroniziram…"); });
+  $("#s-retry", ov)?.addEventListener("click", e => { const n = retryFailed(); e.target.remove(); toast(`Šaljem ponovno: ${n}`); });
   $("#s-switch", ov).addEventListener("click", () => { close(); state.me = null; localStorage.removeItem("muzika_user"); renderLogin(); });
 
   if (me) {

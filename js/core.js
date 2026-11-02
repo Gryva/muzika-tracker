@@ -278,10 +278,31 @@ const isNetworkError = e => !(e instanceof ApiError);
 // ═══════════════ LOCAL CACHE (offline backup) ═══════════════
 function loadCache() {
   const c = lsGet("muzika_cache_v4", null);
-  if (c && c.data) { state.snap = c.data; state.version = c.version; state.loading = false; }
+  if (c && c.data) { state.snap = cleanSnap(c.data); state.version = c.version; state.loading = false; }
   state.outbox = lsGet("muzika_outbox_v4", []);
 }
 function saveCache() { lsSet("muzika_cache_v4", { data: state.snap, version: state.version, savedAt: Date.now() }); }
+// ═══════════════ incoming data guard ═══════════════
+/** Anyone can type into the Google Sheet, so whatever comes from it is cleaned before the app uses it:
+ *  links must be real web links, colours real colours, reactions real emoji. Text is escaped when shown. */
+const safeUrl = u => /^https:\/\/[^\s"'<>]+$/i.test(String(u || "").trim()) ? String(u).trim() : "";
+const safeImg = u => safeUrl(u) || (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(String(u || "")) ? u : "");
+const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || "").trim()) ? String(c).trim() : "";
+function isEmojiOnly(e) {
+  e = String(e || "");
+  if (!e || e.length > 16) return false;
+  try { return /\p{Extended_Pictographic}/u.test(e) && !/[\p{L}\p{N}<>"'&=\/\\]/u.test(e.replace(/[#*0-9]\uFE0F?\u20E3/g, "")); } catch (x) { return REACTIONS.includes(e); }
+}
+function cleanSnap(d) {
+  if (!d || typeof d !== "object") return d;
+  (d.users || []).forEach(u => { u.color = safeColor(u.color); u.avatar = safeImg(u.avatar); });
+  (d.albums || []).forEach(a => ["spotify", "youtube", "apple", "deezer"].forEach(k => { if (a[k]) a[k] = safeUrl(a[k]); }));
+  (d.albums || []).forEach(a => { if (a.cover) a.cover = safeImg(a.cover); });
+  if (Array.isArray(d.reactions)) d.reactions = d.reactions.filter(r => isEmojiOnly(r.emoji));
+  if (d.sheetUrl) d.sheetUrl = safeUrl(d.sheetUrl);
+  return d;
+}
+
 function saveOutbox() { lsSet("muzika_outbox_v4", state.outbox); }
 
 // ═══════════════ OUTBOX: every write goes through here ═══════════════
@@ -300,6 +321,15 @@ function queue(payload, label) {
 }
 
 let flushing = false;
+const FAILED_KEY = "muzika_failed_v1";
+/** Put rejected albums back in the queue (e.g. after the Google script was fixed). */
+function retryFailed() {
+  const list = lsGet(FAILED_KEY, []);
+  if (!list.length) return 0;
+  list.forEach(f => state.outbox.push({ payload: f.payload, label: f.label, ts: Date.now() }));
+  lsSet(FAILED_KEY, []); saveOutbox(); rebuild?.(); flush();
+  return list.length;
+}
 async function flush() {
   if (flushing) return;
   flushing = true;
@@ -315,7 +345,10 @@ async function flush() {
       } catch (e) {
         if (isNetworkError(e)) { state.online = false; break; }
         console.error("Write rejected", op, e);
-        toast("⚠️ " + (op.label || "Promjena") + " nije uspjela: " + e.message, 5000);
+        // albums are precious: a rejected add / edit is kept on this device so it can be retried, never just lost
+        const keep = ["add", "update"].includes(op.payload?.action);
+        if (keep) lsSet(FAILED_KEY, [...lsGet(FAILED_KEY, []), { payload: op.payload, label: op.label, error: String(e.message || e), at: Date.now() }].slice(-30));
+        toast("⚠️ Nije uspjelo – " + (op.label || "promjena").toLowerCase() + ": " + e.message + (keep ? " – sačuvano na uređaju (Postavke → Sinkronizacija)" : ""), 6000);
         op.done = true; op.failed = true; op.doneAt = Date.now();
       }
       saveOutbox();
@@ -400,7 +433,7 @@ async function refresh(force = false) {
       state.outbox = state.outbox.filter(o => !(o.done && o.doneAt <= started));
       saveOutbox();
       if (res.data) {
-        state.snap = res.data; state.version = res.version;
+        state.snap = cleanSnap(res.data); state.version = res.version;
         saveCache();
         adoptServerSettings();
       }
@@ -601,7 +634,7 @@ function computeNotifs() {
     if (r.user === me || r.ts <= seen) continue;
     const a = D.byKey.get(r.key);
     if (!a || a.owner !== me) continue;
-    out.push({ type: "reaction", ts: r.ts, user: r.user, key: r.key, html: `<b>${esc(r.user)}</b> reagira ${r.emoji} na <b>${esc(a.album)}</b>` });
+    out.push({ type: "reaction", ts: r.ts, user: r.user, key: r.key, html: `<b>${esc(r.user)}</b> reagira ${esc(r.emoji)} na <b>${esc(a.album)}</b>` });
   }
   for (const l of v.listen) {
     if (l.forUser !== me || l.addedBy === me || l.ts <= Math.max(seen, lsGet("muzika_lseen_" + me, 0))) continue;

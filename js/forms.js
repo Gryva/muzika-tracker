@@ -206,6 +206,75 @@ function login(name) {
   state.tab = name === GUEST ? null : name; state.rendered = new Set(); state.whoOpen = false; state.scrollToEnd = true;
   if (state.snap) adoptServerSettings();
   rebuild();
+  // first time this person sets up on any device: offer the look (style, cards, background) – skippable
+  if (canWrite() && !state.settings.updatedAt && !localStorage.getItem(LOOK_KEY + name)) setTimeout(openLookSetup, 350);
+}
+
+// ═══════════════ onboarding: pick your look (live) ═══════════════
+const LOOK_KEY = "muzika_look_done_";
+/** A new style starts from its own colours and background (same rule as in Settings). */
+function applyStyleChoice(s, k) {
+  s.style = k;
+  s.accent = null; s.tint = null;
+  Object.values(s.months).forEach(mp => { delete mp.color; delete mp.tint; });
+  if (style().bgSet === "off") s.bg.on = false;
+  else if (Object.values(STYLES).some(x => x.bgSet === s.bg.set) || !s.bg.on) { s.bg.set = style().bgSet; s.bg.on = true; }
+}
+/** Bottom sheet over the real list, so every choice shows on your own albums right away. */
+function openLookSetup() {
+  if ($(".look-setup") || !state.me) return;
+  const s = state.settings, me = state.me;
+  const ov = document.createElement("div");
+  ov.className = "look-setup";
+  const bgRow = () => `<button data-v="off" class="${!s.bg.on ? "on" : ""}">Isključeno</button>` +
+    Object.keys(BG_SETS).map(k => `<button data-v="${k}" class="${s.bg.on && s.bg.set === k ? "on" : ""}">${BG_SETS[k].slice(0, 3).join(" ")}</button>`).join("");
+  ov.innerHTML = `<section class="sheet look-sheet" role="dialog" aria-labelledby="look-title">
+    <div class="look-head">
+      <div><h2 class="sheet-title" id="look-title">Odaberi svoj izgled</h2><p class="look-sub">Mijenja se odmah – pogledaj gore. Sve možeš promijeniti i kasnije u Postavkama.</p></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="look-skip">Preskoči</button>
+    </div>
+    <div class="look-body">
+      <div class="look-sec"><div class="fl">Stil</div>
+        <div class="look-styles" id="look-style">${Object.entries(STYLES).map(([k, st]) => `
+          <button type="button" class="style-card ${s.style === k ? "on" : ""}" data-v="${k}" aria-pressed="${s.style === k}">
+            <span class="style-swatch">${st.swatch.map(c => `<i style="background:${c}"></i>`).join("")}</span>
+            <b style="font-family:${st.display || st.font}">${esc(st.name)}</b><small>${esc(st.desc)}</small>
+          </button>`).join("")}</div></div>
+      <div class="look-sec"><div class="fl">Kartice albuma</div>
+        <div class="seg wide" id="look-cards">${[["collapsed", "Zatvorene"], ["open", "Uvijek otvorene"]].map(([k, l]) => `<button type="button" data-v="${k}" class="${s.cards === k ? "on" : ""}">${l}</button>`).join("")}</div></div>
+      <div class="look-sec"><div class="fl">Pozadina koja lebdi</div>
+        <div class="choice look-bg" id="look-bg">${bgRow()}</div></div>
+    </div>
+    <div class="form-actions"><button type="button" class="btn btn-primary" id="look-done">Gotovo 🎧</button></div>
+  </section>`;
+  document.body.appendChild(ov);
+  document.body.classList.add("look-open");
+  const rerender = () => { saveSettings(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderMain(); };
+  const done = msg => {
+    try { localStorage.setItem(LOOK_KEY + me, "1"); } catch (e) {}
+    ov.classList.add("closing"); document.body.classList.remove("look-open");
+    setTimeout(() => ov.remove(), 220);
+    if (msg) toast(msg);
+  };
+  const wireBg = () => $$("#look-bg button", ov).forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = b.dataset.v; }
+    $$("#look-bg button", ov).forEach(x => x.classList.toggle("on", x === b)); saveSettings();
+  }));
+  $$("#look-style .style-card", ov).forEach(b => b.addEventListener("click", () => {
+    applyStyleChoice(s, b.dataset.v);
+    $$("#look-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
+    $("#look-bg", ov).innerHTML = bgRow(); wireBg();
+    rerender();
+  }));
+  $$("#look-cards button", ov).forEach(b => b.addEventListener("click", () => {
+    s.cards = b.dataset.v; state.openCards = new Set();
+    $$("#look-cards button", ov).forEach(x => x.classList.toggle("on", x === b)); rerender();
+  }));
+  wireBg();
+  $("#look-skip", ov).addEventListener("click", () => done());
+  $("#look-done", ov).addEventListener("click", () => done("Izgledaš super 😎"));
+  ov.addEventListener("keydown", e => { if (e.key === "Escape") done(); });
+  setTimeout(() => $("#look-style .style-card.on", ov)?.scrollIntoView({ block: "nearest", inline: "center" }), 60);
 }
 
 // ═══════════════ rating widget ═══════════════
@@ -570,12 +639,7 @@ function openSettings(section) {
   const rerender = () => { saveSettings(); state.rendered = new Set(state.view?.albums.map(a => a.key)); renderMain(); };
 
   $$("#s-style .style-card", ov).forEach(b => b.addEventListener("click", () => {
-    s.style = b.dataset.v;
-    // a new look starts from its own colours: drop accent + month colour overrides (icons / folded months stay)
-    s.accent = null; s.tint = null;
-    Object.values(s.months).forEach(mp => { delete mp.color; delete mp.tint; });
-    if (style().bgSet === "off") s.bg.on = false;
-    else if (Object.values(STYLES).some(x => x.bgSet === s.bg.set) || !s.bg.on) { s.bg.set = style().bgSet; s.bg.on = true; }
+    applyStyleChoice(s, b.dataset.v); // a new look starts from its own colours (icons / folded months stay)
     $$("#s-style .style-card", ov).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     $("#gv-style", ov).textContent = style().name;
     rerender();

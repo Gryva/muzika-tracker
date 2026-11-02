@@ -195,6 +195,12 @@ window.I18N_EN = {
   "Ne mogu pročitati tu sliku": "Can't read that image",
   "Link kopiran 📋": "Link copied 📋",
 
+  // ── first-time look setup ──
+  "Odaberi svoj izgled": "Pick your look",
+  "Mijenja se odmah – pogledaj gore. Sve možeš promijeniti i kasnije u Postavkama.": "It changes right away – look above. You can change all of it later in Settings.",
+  "Preskoči": "Skip",
+  "Gotovo 🎧": "Done 🎧",
+
   // ── month settings + colour picker ──
   "Izgled mjeseca": "Month look",
   "zadana": "default",

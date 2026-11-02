@@ -2602,3 +2602,27 @@ button.logo:active { transform: scale(.96); }
 #list > .month:last-child, #list > .year:last-child .month:last-child {
   min-height: calc((100dvh - var(--chrome-h, 130px) - var(--dock-h, 80px) - 24px) * .4);
 }
+
+/* v43: first-time look setup – a bottom sheet over the live list */
+.look-setup { position: fixed; left: 0; right: 0; bottom: 0; z-index: 250; display: flex; justify-content: center; pointer-events: none; }
+.look-sheet {
+  pointer-events: auto; width: 100%; max-width: 620px; max-height: min(64dvh, 620px); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: var(--radius) var(--radius) 0 0 !important; box-shadow: 0 -14px 40px rgba(0, 0, 0, .35); animation: slideUp .35s var(--ease);
+}
+.look-setup.closing .look-sheet { transition: transform .22s ease, opacity .22s ease; transform: translateY(40px); opacity: 0; }
+.look-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 10px; border-bottom: 1px solid var(--soft); }
+.look-head .sheet-title { font-size: 19px; margin: 0; }
+.look-sub { margin: 4px 0 0; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.look-head .btn { flex: none; }
+.look-body { overflow-y: auto; padding: 6px 18px 12px; flex: 1; min-height: 0; }
+.look-sec { padding: 12px 0 4px; }
+.look-sec .fl { margin-bottom: 8px; }
+.look-styles { display: flex; gap: 10px; overflow-x: auto; padding: 2px 18px 10px; margin: 0 -18px; scroll-snap-type: x proximity; scrollbar-width: none; }
+.look-styles::-webkit-scrollbar { display: none; }
+.look-styles .style-card { flex: 0 0 150px; scroll-snap-align: start; text-align: left; }
+.look-bg { flex-wrap: wrap; }
+.look-sheet .form-actions { padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); }
+.look-sheet .form-actions .btn { flex: 1; height: 50px; font-size: 16px; }
+body.look-open .container { padding-bottom: min(66dvh, 640px); }
+@media (min-width: 640px) { .look-setup { bottom: 16px; } .look-sheet { border-radius: var(--radius) !important; } }
+@media (prefers-reduced-motion: reduce) { .look-sheet { animation: none; } }

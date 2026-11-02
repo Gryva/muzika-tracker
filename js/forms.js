@@ -32,6 +32,23 @@ function pickFile() {
 // ═══════════════ welcome: what this is + the group's rules ═══════════════
 const WELCOME_KEY = "muzika_welcomed";
 function welcomeHtml() {
+  if (lang() === "en") return `<div class="welcome">
+    <div class="welcome-hi" aria-hidden="true">👋</div>
+    <h1 class="login-title">Willkommen!</h1>
+    <p class="welcome-lead">Our shared album spreadsheet – just prettier and in your pocket. Everything you log here shows up in the Google Sheet right away, and the other way round.</p>
+    <ul class="rules">
+      <li><span class="r-ic" aria-hidden="true">🗂️</span><span>Everyone has <b>their own table</b> and only writes in it. New here? Pick “I'm new” and you'll get your own tab.</span></li>
+      <li><span class="r-ic" aria-hidden="true">🙅</span><span><b>We don't delete other people's albums.</b> But comments and reactions on them – absolutely! 💬</span></li>
+      <li><span class="r-ic"><span class="mark-dot mark-first big" aria-hidden="true"></span></span><span><b>Purple</b> = an artist you're hearing <b>for the first time</b>. E.g. you've never heard anything by Živo Blato and you listen to an album.</span></li>
+      <li><span class="r-ic"><span class="mark-dot mark-re big" aria-hidden="true"></span></span><span><b>Blue</b> = an album you're listening to <b>again</b>. E.g. you decide to relisten to Konac Konca.</span></li>
+      <li><span class="r-ic" aria-hidden="true">🔗</span><span>Sharing the link with good people is very welcome!</span></li>
+    </ul>
+    <p class="welcome-sign">Have fun and see you in the tables!<br><small>– moderator, <b>Osto</b></small></p>
+    <div class="welcome-foot">
+      <button type="button" class="sheet-link share-app" data-act="share-app">🔗 Share Muzika with friends <span aria-hidden="true">↗</span></button>
+      <p class="made-by">App made by <b>Griva</b> 😉</p>
+    </div>
+  </div>`;
   return `<div class="welcome">
     <div class="welcome-hi" aria-hidden="true">👋</div>
     <h1 class="login-title">Willkommen!</h1>
@@ -53,8 +70,8 @@ function welcomeHtml() {
 /** Share the app: the link always opens on "Tko sluša?" so nobody lands in someone else's table. */
 async function shareApp() {
   const url = location.origin + location.pathname + "?tko";
-  try { if (navigator.share) { await navigator.share({ title: "Muzika", text: "Upiši što slušaš 🎧", url }); return; } } catch (e) { if (e.name === "AbortError") return; }
-  try { await navigator.clipboard.writeText(url); toast("Link kopiran 📋"); } catch (e) { prompt("Kopiraj link:", url); }
+  try { if (navigator.share) { await navigator.share({ title: "Muzika", text: L("Upiši što slušaš 🎧", "Log what you're listening to 🎧"), url }); return; } } catch (e) { if (e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(url); toast("Link kopiran 📋"); } catch (e) { prompt(L("Kopiraj link:", "Copy the link:"), url); }
 }
 
 /** The welcome text as a full page – from the app name or Settings → Pravila i upute. */
@@ -77,8 +94,34 @@ function renderWelcome(onDone) {
   $("#w-go", el).addEventListener("click", () => {
     try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) {}
     el.classList.add("closing");
-    setTimeout(() => { el.remove(); onDone(); }, 200);
+    setTimeout(() => {
+      el.remove();
+      // first visit: greeting (Croatian) → language → group password → who's listening
+      if (!localStorage.getItem(LANG_KEY)) return renderLangPick();
+      if (state.gateWanted) showGate();
+      onDone();
+    }, 200);
   });
+}
+/** One-time language choice right after the greeting. Picking reloads so every screen is in that language. */
+function renderLangPick() {
+  const el = document.createElement("div");
+  el.className = "login lang-screen";
+  el.innerHTML = `<div class="login-box lang-box" role="dialog" aria-labelledby="lang-title">
+    <div class="gate-lock" aria-hidden="true">🌍</div>
+    <h1 class="login-title" id="lang-title">Jezik · Language</h1>
+    <p class="login-sub">Odaberi jezik aplikacije · Choose the app language<br><small>Možeš ga promijeniti u Postavkama · You can change it in Settings</small></p>
+    <div class="lang-pick">
+      <button type="button" class="user-btn lang-btn" data-lang="hr" lang="hr"><span class="lang-flag" aria-hidden="true">🇭🇷</span>Hrvatski</button>
+      <button type="button" class="user-btn lang-btn" data-lang="en" lang="en"><span class="lang-flag" aria-hidden="true">🇬🇧</span>English</button>
+    </div>
+  </div>`;
+  document.body.appendChild(el);
+  $$(".lang-btn", el).forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
+}
+function setLang(l) {
+  try { localStorage.setItem(LANG_KEY, l === "en" ? "en" : "hr"); } catch (e) {}
+  location.reload();
 }
 
 function renderLogin(joining = false) {
@@ -383,6 +426,8 @@ function openEditor(a = null, prefill = {}) {
 /** Full-screen lock: shown whenever the Google script answers "AUTH". Typed once per device. */
 function showGate(wrong = false) {
   if ($(".gate")) { if (wrong) gateWrong(); return; }
+  if ($(".welcome-screen, .lang-screen")) { state.gateWanted = true; return; } // greeting + language come first
+  state.gateWanted = false;
   const el = document.createElement("div");
   el.className = "login gate";
   el.innerHTML = `<form class="login-box gate-box" autocomplete="on" aria-labelledby="gate-title">
@@ -477,6 +522,13 @@ function openSettings(section) {
         </div>
       </div>
       </details>
+      <details class="group"><summary><span class="si-ic" aria-hidden="true">🌍</span><span class="si-label">Jezik · Language</span><small class="group-val">${lang() === "en" ? "English" : "Hrvatski"}</small></summary>
+      <div class="set-list">
+        <div class="set-row">
+          <div class="seg wide" id="s-lang">${[["hr", "🇭🇷 Hrvatski"], ["en", "🇬🇧 English"]].map(([k, l]) => `<button data-v="${k}" lang="${k}" class="${lang() === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        </div>
+      </div>
+      </details>
 
       <details class="group"><summary><span class="si-ic" aria-hidden="true">✨</span><span class="si-label">Pozadina koja lebdi</span><small class="group-val" id="gv-bg">${s.bg.on ? "uključena" : "isključena"}</small></summary>
       <div class="choice" id="s-bgset">
@@ -531,6 +583,7 @@ function openSettings(section) {
   }));
   choice("#s-bgset", v => { setTimeout(() => { $("#gv-bg", ov).textContent = s.bg.on ? "uključena" : "isključena"; }, 0); if (v === "off") s.bg.on = false; else { s.bg.on = true; s.bg.set = v; } saveSettings(); });
   ["density", "speed", "opacity"].forEach(k => $("#s-" + k, ov).addEventListener("change", e => { s.bg[k] = +e.target.value; s.bg.on = true; saveSettings(); }));
+    $$("#s-lang button", ov).forEach(b => b.addEventListener("click", () => { if (b.dataset.v !== lang()) setLang(b.dataset.v); }));
     choice("#s-cards", v => { $("#gv-view", ov).textContent = v === "open" ? "otvorene kartice" : "zatvorene kartice"; s.cards = v; state.openCards = new Set(); rerender(); });
 
   $("#s-backup", ov).addEventListener("click", () => {

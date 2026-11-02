@@ -11,7 +11,18 @@ const API_URL = localStorage.getItem("muzika_api") || DEFAULT_API;
 const POLL_MS = 10000;
 const GUEST = "__guest__";
 
-const MONTH_NAMES = ["Siječanj", "Veljača", "Ožujak", "Travanj", "Svibanj", "Lipanj", "Srpanj", "Kolovoz", "Rujan", "Listopad", "Studeni", "Prosinac"];
+// ═══════════════ language ═══════════════
+/** Language is per device (it's picked before anyone logs in). Croatian is the default. */
+const LANG_KEY = "muzika_lang";
+const lang = () => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "hr");
+const L = (hr, en) => (lang() === "en" ? en : hr);
+const LOCALE = () => L("hr-HR", "en-GB");
+document.documentElement.lang = lang();
+const MONTH_NAMES_HR = ["Siječanj", "Veljača", "Ožujak", "Travanj", "Svibanj", "Lipanj", "Srpanj", "Kolovoz", "Rujan", "Listopad", "Studeni", "Prosinac"];
+const MONTH_NAMES_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTH_NAMES = lang() === "en" ? MONTH_NAMES_EN : MONTH_NAMES_HR; // language changes reload the page
+/** "1 album" / "3 albuma" – "1 album" / "3 albums" */
+const albumsWord = n => L(n === 1 ? "album" : "albuma", n === 1 ? "album" : "albums");
 const DEFAULT_MONTH_COLORS = ["#6ec6ff", "#b39dff", "#6fe3a1", "#ffd166", "#a3e635", "#ffb36b", "#ff7b7b", "#ff8fc8", "#e0a96d", "#ff8a3d", "#a0a7c8", "#7fd8e8"];
 const REACTIONS = ["🔥", "❤️", "😍", "🤘", "😮", "💤"];
 /** The bigger picker – used once the Google script accepts any emoji (reactionsAllowed: "any"). */
@@ -44,23 +55,23 @@ const BG_SETS = {
 /** Whole-app looks. Each one brings its own palette, month colours, font and card tint; users can still tweak on top. */
 const STYLES = {
   default: {
-    name: "Ponoć", desc: "Tamno, neonski naglasci", accent: THEMES.coral, font: FONTS.system, tint: 18,
+    name: L("Ponoć", "Midnight"), desc: L("Tamno, neonski naglasci", "Dark with neon accents"), accent: THEMES.coral, font: FONTS.system, tint: 18,
     monthColors: DEFAULT_MONTH_COLORS, bgSet: "notes", swatch: ["#0f0f11", "#ff6b6b", "#6ec6ff"], themeColor: "#0f0f11"
   },
   film: {
-    name: "Retro film", desc: "Filmsko zrno, polaroidi, izblijedjele boje", accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
+    name: L("Retro film", "Retro film"), desc: L("Filmsko zrno, polaroidi, izblijedjele boje", "Film grain, polaroids, faded colours"), accent: "#4A7B7C", font: "Georgia, 'Times New Roman', serif", tint: 30,
     monthColors: ["#7A9CA8", "#B98B9E", "#8FA37E", "#E8B4B8", "#A8B26B", "#D9A441", "#C9734F", "#D4A574", "#8B4513", "#B5562E", "#6B7280", "#4A7B7C"],
     bgSet: "film", swatch: ["#F5E6C8", "#D4A574", "#4A7B7C", "#E8B4B8"], themeColor: "#F5E6C8"
   },
   pop: {
-    name: "Neobrutal", desc: "Debeli obrubi, tvrde sjene, glasne boje", accent: "#FF5252",
+    name: L("Neobrutal", "Neo-brutal"), desc: L("Debeli obrubi, tvrde sjene, glasne boje", "Thick outlines, hard shadows, loud colours"), accent: "#FF5252",
     font: "'Space Grotesk', system-ui, sans-serif", tint: 100,
     fontHref: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap",
     monthColors: ["#2196F3", "#FF80AB", "#4CAF50", "#FFEB3B", "#B2FF59", "#FF9800", "#FF5252", "#18FFFF", "#FFD180", "#FF6E40", "#B388FF", "#82B1FF"],
     bgSet: "shapes", swatch: ["#FFEB3B", "#FF5252", "#2196F3", "#000000"], themeColor: "#FFFBEB"
   },
   clear: {
-    name: "Jasno", desc: "Veliki tekst, jak kontrast, lako za dodir", accent: "#1E3A8A",
+    name: L("Jasno", "Clear"), desc: L("Veliki tekst, jak kontrast, lako za dodir", "Big text, strong contrast, easy to tap"), accent: "#1E3A8A",
     font: "'Atkinson Hyperlegible', system-ui, sans-serif", tint: 0,
     fontHref: "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap",
     // every month colour passes 4.5:1 on white, so it can carry text; names are always written out too
@@ -68,52 +79,52 @@ const STYLES = {
     bgSet: "off", swatch: ["#FFFFFF", "#1E3A8A", "#166534", "#F59E0B"], themeColor: "#FFFFFF"
   },
   clay: {
-    name: "Glina", desc: "Mekani, debeljuškasti pasteli", accent: "#F4A6B8",
+    name: L("Glina", "Clay"), desc: L("Mekani, debeljuškasti pasteli", "Soft, chubby pastels"), accent: "#F4A6B8",
     font: "'Nunito', system-ui, sans-serif", tint: 100,
     fontHref: "https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap",
     monthColors: ["#ADD8E6", "#FFD1DC", "#98FF98", "#E6E6FA", "#B5EAD7", "#FFE5B4", "#FDBCB4", "#C7CEEA", "#FFDAC1", "#E2F0CB", "#F8C8DC", "#CDE7F0"],
     bgSet: "shapes", swatch: ["#FDBCB4", "#ADD8E6", "#98FF98", "#E6E6FA"], themeColor: "#F0E6FA"
   },
   nature: {
-    name: "Priroda", desc: "Zemljani tonovi, oblutci, valovi", accent: "#228B22",
+    name: L("Priroda", "Nature"), desc: L("Zemljani tonovi, oblutci, valovi", "Earthy tones, pebbles, waves"), accent: "#228B22",
     font: "system-ui, -apple-system, 'Segoe UI', sans-serif", display: "Georgia, 'Times New Roman', serif", tint: 22,
     monthColors: ["#87CEEB", "#6B8E23", "#228B22", "#9ACD32", "#3CB371", "#DAA520", "#CD853F", "#8B4513", "#B8860B", "#A0522D", "#556B2F", "#5F9EA0"],
     bgSet: "nature", swatch: ["#F5F5DC", "#228B22", "#8B4513", "#87CEEB"], themeColor: "#F5F5DC"
   },
   vivid: {
-    name: "Živo", desc: "Neonski blokovi, geometrija, energija", accent: "#39FF14",
+    name: L("Živo", "Vivid"), desc: L("Neonski blokovi, geometrija, energija", "Neon blocks, geometry, energy"), accent: "#39FF14",
     font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 100,
     monthColors: ["#00FFFF", "#BF00FF", "#39FF14", "#FFAA00", "#FF1493", "#CCFF00", "#FF7F00", "#FF006E", "#00FFFF", "#FFAA00", "#BF00FF", "#39FF14"],
     bgSet: "geo", swatch: ["#0D0D0D", "#39FF14", "#BF00FF", "#FF1493"], themeColor: "#0D0D0D"
   },
   memphis: {
-    name: "Memphis", desc: "80-e: oblici, vijuge, točkice", accent: "#FF71CE",
+    name: L("Memphis", "Memphis"), desc: L("80-e: oblici, vijuge, točkice", "The '80s: shapes, squiggles, dots"), accent: "#FF71CE",
     font: "'Futura', 'Jost', 'League Spartan', 'Avenir Next', sans-serif", tint: 100,
     fontHref: "https://fonts.googleapis.com/css2?family=Jost:wght@500;700;900&display=swap",
     monthColors: ["#86CCCA", "#FF71CE", "#FFCE5C", "#4ECDC4", "#FF6B6B", "#6A7BB4", "#FFCE5C", "#FF71CE", "#86CCCA", "#FF6B6B", "#6A7BB4", "#4ECDC4"],
     bgSet: "memphis", swatch: ["#FF71CE", "#FFCE5C", "#86CCCA", "#6A7BB4"], themeColor: "#FFFEF7"
   },
   skeu: {
-    name: "Koža i drvo", desc: "Koža, drvo, papir, mjedeni zakovci", accent: "#CD853F",
+    name: L("Koža i drvo", "Leather & wood"), desc: L("Koža, drvo, papir, mjedeni zakovci", "Leather, wood, paper, brass rivets"), accent: "#CD853F",
     font: "Georgia, 'Times New Roman', serif", tint: 0,
     monthColors: ["#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E", "#8B4513", "#A0522D", "#CD853F", "#D2691E"],
     bgSet: "off", swatch: ["#8B4513", "#DEB887", "#FFFEF9", "#B8860B"], themeColor: "#654321"
   },
   eink: {
-    name: "E-papir", desc: "Kao čitač knjiga: papir, tinta, bez animacija", accent: "#1A1A1A",
+    name: L("E-papir", "E-paper"), desc: L("Kao čitač knjiga: papir, tinta, bez animacija", "Like an e-reader: paper, ink, no animation"), accent: "#1A1A1A",
     font: "Georgia, 'Iowan Old Style', 'Times New Roman', serif", tint: 0,
     monthColors: ["#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A", "#1A1A1A", "#4A4A4A"],
     bgSet: "off", swatch: ["#FDFBF7", "#F5F5F5", "#1A1A1A", "#FFFF00"], themeColor: "#FDFBF7"
   },
   raw: {
-    name: "Skica", desc: "Rukom crtano, kraft papir, nesavršeno", accent: "#8B4513",
+    name: L("Skica", "Sketch"), desc: L("Rukom crtano, kraft papir, nesavršeno", "Hand-drawn, kraft paper, imperfect"), accent: "#8B4513",
     font: "'Patrick Hand', 'Comic Sans MS', cursive, sans-serif", tint: 35,
     fontHref: "https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap",
     monthColors: ["#4A6A8A", "#8B4513", "#5E7A3A", "#A0522D", "#6B5B95", "#B5651D", "#8B4513", "#7A5C3E", "#9C6B3F", "#B5562E", "#5A6B7A", "#4A4A4A"],
     bgSet: "sketch", swatch: ["#FAFAF8", "#C4A77D", "#D4C4A8", "#8B4513"], themeColor: "#FAFAF8"
   },
   neu: {
-    name: "Meko", desc: "Neumorfizam: izbočeno i utisnuto, tihi pasteli", accent: "#7B68EE",
+    name: L("Meko", "Soft"), desc: L("Neumorfizam: izbočeno i utisnuto, tihi pasteli", "Neumorphism: raised and pressed, quiet pastels"), accent: "#7B68EE",
     font: "system-ui, -apple-system, 'Segoe UI', sans-serif", tint: 0,
     monthColors: ["#8FB8DE", "#E3A5BE", "#9BC9A8", "#B8A9E8", "#E8C27A", "#E8A98B", "#D98C8C", "#7FB5C4", "#C4A07F", "#D49A6A", "#A3A8C8", "#8CB4D8"],
     bgSet: "off", swatch: ["#E8E8E8", "#C8E0F4", "#F5E0E8", "#7B68EE"], themeColor: "#E8E8E8"
@@ -226,17 +237,17 @@ const fmtRating = (v, plus) => v ? (v % 1 ? v.toFixed(1) : String(v)) + (plus ? 
 function timeAgo(ts) {
   if (!ts) return "";
   const s = (Date.now() - ts) / 1000;
-  if (s < 60) return "sad";
+  if (s < 60) return L("sad", "now");
   if (s < 3600) return Math.floor(s / 60) + " min";
   if (s < 86400) return Math.floor(s / 3600) + " h";
   if (s < 86400 * 7) return Math.floor(s / 86400) + " d";
-  return new Date(ts).toLocaleDateString("hr-HR", { day: "numeric", month: "short" });
+  return new Date(ts).toLocaleDateString(LOCALE(), { day: "numeric", month: "short" });
 }
 function fmtDate(d) {
   const iso = isoDate(d);
   if (!iso) return String(d || "");
   const [y, m, dd] = iso.split("-").map(Number);
-  return new Date(y, m - 1, dd).toLocaleDateString("hr-HR", { day: "numeric", month: "short" });
+  return new Date(y, m - 1, dd).toLocaleDateString(LOCALE(), { day: "numeric", month: "short" });
 }
 function toast(msg, ms = 2600) {
   const t = $("#toast");

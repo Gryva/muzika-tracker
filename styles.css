@@ -2581,3 +2581,11 @@ button.logo:active { transform: scale(.96); }
 .gate-box.shake { animation: gateShake .4s ease; }
 @keyframes gateShake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 @media (prefers-reduced-motion: reduce) { .gate-box.shake { animation: none; } }
+
+/* v40: language picker (first visit) */
+.lang-box { width: 100%; max-width: 380px; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.lang-box .login-sub { margin: 0 0 6px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.lang-box .login-sub small { color: var(--text-3); }
+.lang-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lang-btn { padding: 18px 10px; font-size: 16px; font-weight: 750; gap: 8px; }
+.lang-flag { font-size: 34px; line-height: 1; display: block; }

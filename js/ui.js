@@ -103,7 +103,7 @@ function renderTabs() {
   const anyNew = order.some(n => n !== state.tab && hasNew(n)) || (state.tab !== "listen" && listenNew);
   const cur = state.tab;
   const mineAlbums = cur === "listen" ? [] : v.albums.filter(a => a.owner === cur);
-  const stats = cur === "listen" ? "" : `${mineAlbums.length} album${mineAlbums.length === 1 ? "" : "a"}`;
+  const stats = cur === "listen" ? "" : `${mineAlbums.length} ${albumsWord(mineAlbums.length)}`;
   const label = cur === "listen" ? `<span class="who-ic" aria-hidden="true">🎧</span><span class="who-name">Slušanje</span>`
     : `${avatar(cur, 30)}<span class="who-name">${isMe(cur) ? "Ja" : esc(cur)}</span>`;
   t.innerHTML = `
@@ -186,7 +186,7 @@ function renderList() {
       const yf = !!state.settings.yearsFolded?.[y];
       html += `<div class="year ${yf ? "folded" : ""}" data-year="${y}">
         <button class="year-head" data-act="fold-year" aria-expanded="${!yf}" title="${yf ? "Prikaži" : "Sakrij"} ${y}.">
-          <span class="year-num">${y}.</span><span class="year-count">${yearCounts[y]} ${yearCounts[y] === 1 ? "album" : "albuma"}</span><span class="chev" aria-hidden="true"></span>
+          <span class="year-num">${y}.</span><span class="year-count">${yearCounts[y]} ${albumsWord(yearCounts[y])}</span><span class="chev" aria-hidden="true"></span>
         </button><div class="year-body">`;
     }
     if (state.settings.yearsFolded?.[y]) continue;
@@ -371,7 +371,7 @@ document.addEventListener("click", e => {
   } else if (act === "send" && a) {
     sendComment(a);
   } else if (act === "uncomment") {
-    if (confirm("Obrisati komentar?")) queue({ action: "uncomment", id: btn.dataset.id, author: state.me }, "Brisanje komentara");
+    if (confirm(L("Obrisati komentar?", "Delete this comment?"))) queue({ action: "uncomment", id: btn.dataset.id, author: state.me }, "Brisanje komentara");
   } else if (act === "edit" && a) {
     state.moreFor = null; renderList(); openEditor(a);
   } else if (act === "delete" && a) {
@@ -496,7 +496,7 @@ function sendComment(a) {
 }
 
 function deleteAlbum(a) {
-  if (!confirm(`Obrisati "${a.artist} – ${a.album}"?\nMiče se iz tvoje kartice u tablici (kopija ostaje u app_trash).`)) return;
+  if (!confirm(L(`Obrisati "${a.artist} – ${a.album}"?\nMiče se iz tvoje kartice u tablici (kopija ostaje u app_trash).`, `Delete "${a.artist} – ${a.album}"?\nIt's removed from your tab in the Sheet (a copy stays in app_trash).`))) return;
   if (a.pending && String(a.id).startsWith("tmp_")) {
     state.outbox = state.outbox.filter(o => !(o.payload.action === "add" && "tmp_" + o.payload.clientId === a.id && !o.done));
     saveOutbox(); rebuild(); return;
@@ -530,7 +530,7 @@ function renderListen(main) {
         return `<div class="ll-item ${done ? "done" : ""}" style="animation-delay:${Math.min(i, 10) * 30}ms">
           <div class="ll-main">
             <div class="ll-title">${esc(l.artist)}${l.album ? ` <span>– ${esc(l.album)}</span>` : ""}</div>
-            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} predlaže · ` : ""}${timeAgo(l.ts)}${l.note ? ` · ${esc(l.note)}` : ""}${done ? ` · ✓ poslušano${done.rating ? " " + rateSym() + esc(done.rating) : ""}` : ""}</div>
+            <div class="ll-sub">${l.addedBy !== l.forUser ? `${avatar(l.addedBy, 16)} ${esc(l.addedBy)} predlaže · ` : ""}${timeAgo(l.ts)}${l.note ? ` · <span class="ll-note">${esc(l.note)}</span>` : ""}${done ? ` · ✓ poslušano${done.rating ? " " + rateSym() + esc(done.rating) : ""}` : ""}</div>
           </div>
           ${forMe && !done ? `<button class="mini" data-ll-log="${esc(l.id)}">🎧 Upiši</button>` : ""}
           ${canWrite() && (forMe || isMe(l.addedBy)) ? `<button class="mini danger" data-ll-del="${esc(l.id)}" title="Makni" aria-label="Makni s liste">✕</button>` : ""}
@@ -569,7 +569,7 @@ function openPanel() {
   const n = state.notifs;
   p.innerHTML = `
     <div class="panel-head">Aktivnost ${n.length ? `<button class="mini" id="mark-read">Označi sve pročitanim</button>` : ""}</div>
-    ${n.length ? n.map((x, i) => `<div class="notif" data-i="${i}">${avatar(x.user, 32)}<div class="notif-text">${x.html}${x.extra ? `<em>${x.extra}</em>` : ""}</div><time>${timeAgo(x.ts)}</time></div>`).join("")
+    ${n.length ? n.map((x, i) => `<div class="notif" data-i="${i}">${avatar(x.user, 32)}<div class="notif-text">${x.html}${x.extra ? `<em class="${x.type === "comment" || x.type === "listen" ? "user-text" : ""}">${x.extra}</em>` : ""}</div><time>${timeAgo(x.ts)}</time></div>`).join("")
       : `<div class="empty" style="padding:30px"><div class="empty-icon">🌙</div>Sve si pogledao/la</div>`}`;
   document.body.appendChild(p);
   $("#mark-read", p)?.addEventListener("click", () => closePanel());

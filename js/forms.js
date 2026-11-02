@@ -206,8 +206,8 @@ function login(name) {
   state.tab = name === GUEST ? null : name; state.rendered = new Set(); state.whoOpen = false; state.scrollToEnd = true;
   if (state.snap) adoptServerSettings();
   rebuild();
-  // first time this person sets up on any device: offer the look (style, cards, background) – skippable
-  if (canWrite() && !state.settings.updatedAt && !localStorage.getItem(LOOK_KEY + name)) setTimeout(openLookSetup, 350);
+  // first login on this device: offer the look (style, cards, background), starting from what they already have – skippable
+  if (canWrite() && !localStorage.getItem(LOOK_KEY + name)) setTimeout(openLookSetup, 350);
 }
 
 // ═══════════════ onboarding: pick your look (live) ═══════════════

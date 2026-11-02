@@ -168,7 +168,7 @@ function renderList() {
     list.innerHTML = `<div class="empty"><div class="empty-icon">🎧</div>${canWrite() && state.tab === state.me ? "Još ništa – dodaj prvi album gumbom dolje" : "Još nema albuma"}</div>`;
     return;
   }
-  let html = "", month = -1, year = null, i = 0;
+  let html = "", i = 0;
   const counts = {}, yearCounts = {};
   albums.forEach(a => { const ck = logYear(a) + "-" + (a.month || 0); counts[ck] = (counts[ck] || 0) + 1; yearCounts[logYear(a)] = (yearCounts[logYear(a)] || 0) + 1; });
   // the month that starts open: this month if it has albums, otherwise the latest one before it
@@ -176,37 +176,51 @@ function renderList() {
   const latestYear = Object.keys(yearCounts).sort().pop();
   const ms = Object.keys(counts).filter(k => k.startsWith(latestYear + "-")).map(k => +k.split("-")[1]).filter(Boolean);
   state.openMonth = ms.includes(now) ? now : Math.max(...ms.filter(x => x <= now), 0) || Math.max(...ms, 0);
+  // years → months; gaps between logged months (and up to this month in the current year) show as empty months
+  const byYear = new Map();
   for (const a of albums) {
-    const y = logYear(a);
-    if (y !== year) {
-      // year label on top of its months; tap to fold the whole year (years start open)
-      if (month !== -1) html += `</div></section>`;
-      if (year !== null) html += `</div></div>`;
-      year = y; month = -1;
-      const yf = !!state.settings.yearsFolded?.[y];
-      html += `<div class="year ${yf ? "folded" : ""}" data-year="${y}">
+    const y = String(logYear(a)), m = a.month || 0;
+    if (!byYear.has(y)) byYear.set(y, new Map());
+    const mm = byYear.get(y);
+    if (!mm.has(m)) mm.set(m, []);
+    mm.get(m).push(a);
+  }
+  const thisYear = String(new Date().getFullYear());
+  for (const [y, mm] of byYear) {
+    // year label on top of its months; tap to fold the whole year (years start open)
+    const yf = !!state.settings.yearsFolded?.[y];
+    html += `<div class="year ${yf ? "folded" : ""}" data-year="${y}">
         <button class="year-head" data-act="fold-year" aria-expanded="${!yf}" title="${yf ? "Prikaži" : "Sakrij"} ${y}.">
           <span class="year-num">${y}.</span><span class="year-count">${yearCounts[y]} ${albumsWord(yearCounts[y])}</span><span class="chev" aria-hidden="true"></span>
         </button><div class="year-body">`;
-    }
-    if (state.settings.yearsFolded?.[y]) continue;
-    if ((a.month || 0) !== month) {
-      if (month !== -1) html += `</div></section>`;
-      month = a.month || 0;
-      const mp = { ...monthPref(month), hidden: isFolded(month) }, name = month ? MONTH_NAMES[month - 1] : "Bez mjeseca";
-      html += `<section class="month ${mp.hidden ? "folded" : ""}" style="--m:${monthColor(month)};--tint:${monthTint(month)}" data-month="${month}">
+    if (!yf) {
+      const real = [...mm.keys()].filter(Boolean);
+      const order = [];
+      if (real.length) {
+        const lo = Math.min(...real), hi = Math.max(...real, y === thisYear ? now : 0);
+        for (let m = lo; m <= hi; m++) order.push(m);
+      }
+      if (mm.has(0)) order.push(0);
+      for (const m of order) {
+        const items = mm.get(m) || [];
+        const mp = { ...monthPref(m), hidden: isFolded(m) }, name = m ? MONTH_NAMES[m - 1] : "Bez mjeseca";
+        html += `<section class="month ${mp.hidden ? "folded" : ""} ${items.length ? "" : "empty-month"}" style="--m:${monthColor(m)};--tint:${monthTint(m)}" data-month="${m}">
         <header class="month-head">
-          <span class="month-num" aria-hidden="true">${month ? String(month).padStart(2, "0") : "—"}</span>
+          <span class="month-num" aria-hidden="true">${m ? String(m).padStart(2, "0") : "—"}</span>
           <button class="month-name" data-act="fold-month" aria-expanded="${!mp.hidden}" title="${mp.hidden ? "Prikaži" : "Sakrij"}: ${name}">
-            <h2>${monthTitleHtml(month)}</h2><span class="month-count" aria-label="Albuma: ${counts[year + "-" + month]}">${counts[year + "-" + month]}</span>
+            <h2>${monthTitleHtml(m)}</h2><span class="month-count" aria-label="Albuma: ${items.length}">${items.length}</span>
           </button>
           <span class="month-rule" aria-hidden="true"></span>
           <button class="month-gear" data-act="month-style" aria-label="Uredi izgled: ${name}" title="Uredi izgled: ${name}">⚙︎</button>
         </header><div class="album-list">`;
+        if (!mp.hidden) html += items.length ? items.map(a => cardHtml(a, i++)).join("")
+          : `<p class="month-empty">${canWrite() && state.tab === state.me ? "U ovom mjesecu još nema albuma – dodaj ga gumbom dolje." : "U ovom mjesecu još nema albuma."}</p>`;
+        html += `</div></section>`;
+      }
     }
-    if (!isFolded(month)) html += cardHtml(a, i++);
+    html += `</div></div>`;
   }
-  list.innerHTML = html + (month !== -1 ? `</div></section>` : "") + `</div></div>`;
+  list.innerHTML = html;
   if (state.scrollToEnd) {
     state.scrollToEnd = false;
     requestAnimationFrame(scrollToCurrentMonth);

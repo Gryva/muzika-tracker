@@ -23,6 +23,8 @@ window.I18N_EN = {
 
   // ── list, months, cards ──
   "Bez mjeseca": "No month",
+  "U ovom mjesecu još nema albuma.": "No albums this month yet.",
+  "U ovom mjesecu još nema albuma – dodaj ga gumbom dolje.": "No albums this month yet – add one with the button below.",
   "Ne mogu doći do Google tablice.": "Can't reach the Google Sheet.",
   "Još ništa – dodaj prvi album gumbom dolje": "Nothing yet – add your first album with the button below",
   "Još nema albuma": "No albums yet",

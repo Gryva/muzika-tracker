@@ -2589,3 +2589,11 @@ button.logo:active { transform: scale(.96); }
 .lang-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .lang-btn { padding: 18px 10px; font-size: 16px; font-weight: 750; gap: 8px; }
 .lang-flag { font-size: 34px; line-height: 1; display: block; }
+
+/* v41: empty months stay in the list */
+.month-empty { margin: 2px 0 6px; padding: 14px 16px; border: 1px dashed color-mix(in srgb, var(--m) 45%, var(--soft)); border-radius: var(--radius-sm); color: var(--text-2); font-size: 14px; text-align: center; }
+.month.empty-month .month-head h2 { opacity: .8; }
+[data-style="pop"] .month-empty, [data-style="memphis"] .month-empty { border: 3px dashed #000; border-radius: 0; color: #000; background: #FFF; }
+[data-style="eink"] .month-empty { border-color: var(--ink-soft); border-radius: 2px; color: var(--ink-soft); font-style: italic; }
+[data-style="raw"] .month-empty { border: 2px dashed var(--ink); border-radius: var(--wob-a); color: var(--pencil); }
+[data-style="neu"] .month-empty { border: none; box-shadow: var(--neu-in); border-radius: 16px; }

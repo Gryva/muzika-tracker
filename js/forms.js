@@ -96,9 +96,6 @@ function renderWelcome(onDone) {
     el.classList.add("closing");
     setTimeout(() => {
       el.remove();
-      // first visit: greeting (Croatian) → language → group password → who's listening
-      if (!localStorage.getItem(LANG_KEY)) return renderLangPick();
-      if (state.gateWanted) showGate();
       onDone();
     }, 200);
   });
@@ -125,7 +122,8 @@ function setLang(l) {
 }
 
 function renderLogin(joining = false) {
-  if (!joining && !localStorage.getItem(WELCOME_KEY)) { if (!$(".welcome-screen")) renderWelcome(() => renderLogin()); return; }
+  if ($(".lang-screen, .gate")) return; // language first, then the group password
+  if (!joining && !localStorage.getItem(WELCOME_KEY) && state.snap) { if (!$(".welcome-screen")) renderWelcome(() => renderLogin()); return; }
   $(".login")?.remove();
   if (!state.me) renderFab(); // no one logged in -> no bottom bar behind the picker
   const el = document.createElement("div");
@@ -426,7 +424,7 @@ function openEditor(a = null, prefill = {}) {
 /** Full-screen lock: shown whenever the Google script answers "AUTH". Typed once per device. */
 function showGate(wrong = false) {
   if ($(".gate")) { if (wrong) gateWrong(); return; }
-  if ($(".welcome-screen, .lang-screen")) { state.gateWanted = true; return; } // greeting + language come first
+  if ($(".lang-screen")) { state.gateWanted = true; return; } // the language is picked first
   state.gateWanted = false;
   const el = document.createElement("div");
   el.className = "login gate";
@@ -461,6 +459,7 @@ function showGate(wrong = false) {
       toast("Otključano 🔓");
       await refresh(true);
       flush();
+      if (!localStorage.getItem(WELCOME_KEY)) { if (state.me) renderWelcome(() => {}); else renderLogin(); }
     } catch (x) {
       if (prev) localStorage.setItem(CODE_KEY, prev); else localStorage.removeItem(CODE_KEY);
       go.disabled = false; go.textContent = "Otključaj";
@@ -773,10 +772,16 @@ function renderBg() {
   state.me = saved || null;
   loadSettings(); applyTheme(); loadSeen();
   state.scrollToEnd = true;
-  if (state.me) rebuild(); else renderLogin();
-  // people who already used the app see the welcome + rules once, too
-  if (state.me && !localStorage.getItem(WELCOME_KEY)) renderWelcome(() => {});
-  refresh(true).then(() => { if (!state.me) renderLogin(); });
+  // very first visit: language → group password → greeting (in that language) → who's listening
+  if (!localStorage.getItem(LANG_KEY) && !localStorage.getItem(WELCOME_KEY)) renderLangPick();
+  else if (state.me) rebuild(); else renderLogin();
+  // people who already used the app see the welcome + rules once, too (once the data – and so the password – is in)
+  if (state.me && !localStorage.getItem(WELCOME_KEY) && localStorage.getItem(LANG_KEY)) state.welcomeWanted = true;
+  refresh(true).then(() => {
+    if ($(".lang-screen, .gate")) return;
+    if (!state.me) renderLogin();
+    else if (state.welcomeWanted && state.snap) { state.welcomeWanted = false; renderWelcome(() => {}); }
+  });
   startPolling();
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

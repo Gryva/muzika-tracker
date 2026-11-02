@@ -70,6 +70,7 @@ function doGet(e) {
   try {
     var p = (e && e.parameter) || {};
     var action = p.action || "getAlbums";
+    if (!codeOk(p.code)) return authFail();
     if (action === "getAlbums" || action === "getAll") return getAllResponse(p.v);
     return json({ success: false, error: "Unknown action: " + action });
   } catch (err) {
@@ -81,6 +82,8 @@ function doPost(e) {
   try {
     var p = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     var action = p.action;
+    if (!codeOk(p.code)) return authFail();
+    delete p.code;
     if (action === "getAlbums" || action === "getAll") return getAllResponse(p.v);
     if (action === "lookup") return json({ success: true, result: lookupAlbum(p.artist, p.album, p.spotify) });
 
@@ -115,6 +118,39 @@ function doPost(e) {
   }
 }
 
+/* ═══════════════════════════ group password ═══════════════════════════ */
+/* Only a hash is stored (Script Properties – not in the Sheet, not on GitHub). No password set = open app. */
+var CODE_PROP = "GROUP_CODE_HASH";
+function codeHash(code) {
+  var clean = String(code || "").trim().toLowerCase();
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, "muzika|" + clean, Utilities.Charset.UTF_8);
+  return Utilities.base64Encode(bytes);
+}
+function codeOk(code) {
+  var h = PropertiesService.getScriptProperties().getProperty(CODE_PROP);
+  return !h || codeHash(code) === h;
+}
+function authFail() {
+  Utilities.sleep(700); // slows down anyone guessing
+  return json({ success: false, auth: true, error: "AUTH" });
+}
+function menuSetGroupCode() {
+  var ui = SpreadsheetApp.getUi();
+  var r = ui.prompt("Grupna lozinka", "Upiši novu lozinku (barem 6 znakova; velika/mala slova nisu bitna).\nSvi će je morati upisati jednom na svom mobitelu.", ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var code = r.getResponseText().trim();
+  if (code.length < 6) { ui.alert("Lozinka mora imati barem 6 znakova."); return; }
+  PropertiesService.getScriptProperties().setProperty(CODE_PROP, codeHash(code));
+  clearCache();
+  ui.alert("Lozinka je postavljena. Pošalji je prijateljima – aplikacija će je tražiti jednom na svakom uređaju.");
+}
+function menuClearGroupCode() {
+  var ui = SpreadsheetApp.getUi();
+  if (ui.alert("Ukloniti grupnu lozinku?", "Aplikaciju će opet moći koristiti svatko tko ima link.", ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  PropertiesService.getScriptProperties().deleteProperty(CODE_PROP);
+  ui.alert("Lozinka je uklonjena.");
+}
+
 /** Simple trigger: someone edited the Sheet by hand -> app sees it on its next poll. */
 function onEdit(e) { clearCache(); }
 
@@ -123,6 +159,9 @@ function onOpen() {
     SpreadsheetApp.getUi().createMenu("🎵 Muzika")
       .addItem("Popuni omote albuma", "menuFetchCovers")
       .addItem("Set up / repair app tabs", "setup")
+      .addSeparator()
+      .addItem("🔒 Postavi / promijeni grupnu lozinku", "menuSetGroupCode")
+      .addItem("🔓 Ukloni grupnu lozinku", "menuClearGroupCode")
       .addToUi();
   } catch (e) {}
 }

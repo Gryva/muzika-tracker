@@ -252,25 +252,30 @@ const canWrite = () => state.me && state.me !== GUEST;
 
 // ═══════════════ API ═══════════════
 class ApiError extends Error {}
+/** The Google script wants the group password (none saved yet, or it was changed). */
+class AuthError extends ApiError {}
+const CODE_KEY = "muzika_code";
+const groupCode = () => localStorage.getItem(CODE_KEY) || "";
 async function parseApi(res) {
   if (!res.ok) throw new ApiError("HTTP " + res.status);
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); }
   catch (e) { throw new ApiError("Poslužitelj nije vratio JSON – je li Apps Script objavljen s pristupom 'Anyone'?"); }
+  if (data.auth || data.error === "AUTH") throw new AuthError("Potrebna je grupna lozinka");
   if (data.success === false || data.error) throw new ApiError(data.error || "API error");
   return data;
 }
 async function apiGet(version) {
-  const url = API_URL + "?action=getAlbums" + (version ? "&v=" + encodeURIComponent(version) : "") + "&t=" + Date.now();
-  return parseApi(await fetch(url, { redirect: "follow" }));
+  // POST (not GET) so the group password never ends up in a URL
+  return apiPost({ action: "getAll", v: version || "" });
 }
 // text/plain keeps this a "simple" CORS request (no preflight, which Apps Script can't answer)
 async function apiPost(payload) {
   return parseApi(await fetch(API_URL, {
     method: "POST", redirect: "follow",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({ ...payload, code: groupCode() })
   }));
 }
 const isNetworkError = e => !(e instanceof ApiError);
@@ -344,6 +349,7 @@ async function flush() {
         state.online = true;
       } catch (e) {
         if (isNetworkError(e)) { state.online = false; break; }
+        if (e instanceof AuthError) { showGate(); break; } // nothing is lost: the queue waits for the password
         console.error("Write rejected", op, e);
         // albums are precious: a rejected add / edit is kept on this device so it can be retried, never just lost
         const keep = ["add", "update"].includes(op.payload?.action);
@@ -443,6 +449,7 @@ async function refresh(force = false) {
       maybeAutoCovers();
     } catch (e) {
       state.loading = false;
+      if (e instanceof AuthError) { showGate(); return; }
       if (isNetworkError(e)) state.online = false;
       state.lastError = e.message;
       console.error("Fetch failed", e);

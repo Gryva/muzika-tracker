@@ -379,6 +379,58 @@ function openEditor(a = null, prefill = {}) {
   // no automatic keyboard: you see the whole form first and tap where you want to start
 }
 
+// ═══════════════ group password gate ═══════════════
+/** Full-screen lock: shown whenever the Google script answers "AUTH". Typed once per device. */
+function showGate(wrong = false) {
+  if ($(".gate")) { if (wrong) gateWrong(); return; }
+  const el = document.createElement("div");
+  el.className = "login gate";
+  el.innerHTML = `<form class="login-box gate-box" autocomplete="on" aria-labelledby="gate-title">
+    <div class="gate-lock" aria-hidden="true">🔒</div>
+    <h1 class="login-title" id="gate-title">Muzika je zaključana</h1>
+    <p class="login-sub">Upiši grupnu lozinku – pitaj nekoga iz ekipe. Treba samo jednom na ovom uređaju.</p>
+    <input type="text" name="username" value="muzika" autocomplete="username" hidden>
+    <div class="gate-field">
+      <input class="fi" id="gate-code" type="password" autocomplete="current-password" placeholder="Grupna lozinka" aria-label="Grupna lozinka" required minlength="1">
+      <button type="button" class="btn btn-ghost btn-icon" id="gate-eye" aria-label="Prikaži lozinku" aria-pressed="false">👁</button>
+    </div>
+    <div class="hint warn" id="gate-err" aria-live="polite"></div>
+    <button class="btn btn-primary gate-go" id="gate-go">Otključaj</button>
+  </form>`;
+  document.body.appendChild(el);
+  const inp = $("#gate-code", el), err = $("#gate-err", el), go = $("#gate-go", el);
+  $("#gate-eye", el).addEventListener("click", e => {
+    const show = inp.type === "password"; inp.type = show ? "text" : "password";
+    e.currentTarget.setAttribute("aria-pressed", show); e.currentTarget.setAttribute("aria-label", show ? "Sakrij lozinku" : "Prikaži lozinku");
+  });
+  $("form", el).addEventListener("submit", async e => {
+    e.preventDefault();
+    const code = inp.value.trim();
+    if (!code) return;
+    go.disabled = true; go.textContent = "Provjeravam…"; err.textContent = "";
+    const prev = groupCode();
+    localStorage.setItem(CODE_KEY, code);
+    try {
+      await apiPost({ action: "getAll", v: "" });
+      el.remove();
+      toast("Otključano 🔓");
+      await refresh(true);
+      flush();
+    } catch (x) {
+      if (prev) localStorage.setItem(CODE_KEY, prev); else localStorage.removeItem(CODE_KEY);
+      go.disabled = false; go.textContent = "Otključaj";
+      if (x instanceof AuthError) { err.textContent = "Pogrešna lozinka – pokušaj ponovno."; gateWrong(); }
+      else err.textContent = isNetworkError(x) ? "Nema interneta – pokušaj kad budeš na mreži." : "Nešto nije u redu: " + (x.message || x);
+    }
+  });
+  setTimeout(() => inp.focus(), 50);
+}
+function gateWrong() {
+  const box = $(".gate-box"); if (!box) return;
+  box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake");
+  $("#gate-code")?.select();
+}
+
 // ═══════════════ settings ═══════════════
 function openSettings(section) {
   const s = state.settings;

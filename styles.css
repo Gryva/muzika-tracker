@@ -2597,3 +2597,8 @@ button.logo:active { transform: scale(.96); }
 [data-style="eink"] .month-empty { border-color: var(--ink-soft); border-radius: 2px; color: var(--ink-soft); font-style: italic; }
 [data-style="raw"] .month-empty { border: 2px dashed var(--ink); border-radius: var(--wob-a); color: var(--pencil); }
 [data-style="neu"] .month-empty { border: none; box-shadow: var(--neu-in); border-radius: 16px; }
+
+/* v42: much less empty space under the last month (was a full screen) – earlier months stay in view */
+#list > .month:last-child, #list > .year:last-child .month:last-child {
+  min-height: calc((100dvh - var(--chrome-h, 130px) - var(--dock-h, 80px) - 24px) * .4);
+}
